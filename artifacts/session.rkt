@@ -9,6 +9,7 @@
          "config.rkt"
          "http.rkt"
          "planner.rkt"
+         "runner.rkt"
          "visualizer.rkt"
          "world.rkt")
 
@@ -111,7 +112,7 @@
              'inventory (inventory-summary char)))
 
 (define (load-world-index* #:config [config (current-config)])
-  ((dynamic-require "artifacts/runner.rkt" 'load-world-index) #:config config))
+  (load-world-index #:config config))
 
 (define (character-status-record char)
   (hasheq 'name (character-field char 'name)
@@ -124,12 +125,30 @@
           'cooldown (cooldown-remaining char)
           'gold (character-field char 'gold 0)))
 
+(define (pending-items-count #:config [config (session-config)])
+  (with-handlers ([exn:fail? (lambda (_exn) 0)])
+    (define response (get-pending-items #:size 50 #:config config))
+    (define data
+      (cond
+        [(and (hash? response) (hash-has-key? response 'data))
+         (hash-ref response 'data)]
+        [else response]))
+    (cond
+      [(list? data) (length data)]
+      [(hash? data) 1]
+      [else 0])))
+
 (define (session-status-message #:error [error #f])
+  (define pending
+    (if (session-authenticated?)
+        (pending-items-count)
+        0))
   (make-protocol-message
    "session.status"
    (hasheq 'authenticated (session-authenticated?)
            'selected session-selected-name
            'characters (map character-status-record session-chars)
+           'pending_items pending
            'error error)))
 
 (define (action-result-message character action

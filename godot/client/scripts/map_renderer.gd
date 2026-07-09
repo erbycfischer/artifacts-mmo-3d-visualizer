@@ -11,8 +11,8 @@ signal tile_hovered(tile: Dictionary)
 @export var show_grid_lines := false
 @export var ground_thickness := 0.18
 @export var seam_overlap := 0.14
-@export var height_amp := 0.11
-@export var clutter_density := 0.72
+@export var height_amp := 0.16
+@export var clutter_density := 0.88
 
 var _selected_key := ""
 var _hover_key := ""
@@ -28,6 +28,11 @@ var _pick_root: Node3D
 var _wind_nodes: Array = []
 var _wind_phases: Array = []
 var _wind_t := 0.0
+var _water_meshes: Array = []
+var _water_mats: Array = []
+var _water_planes: Array = []
+var _water_phases: Array = []
+var _atmosphere: GPUParticles3D
 
 
 func _ready() -> void:
@@ -62,6 +67,26 @@ func _process(delta: float) -> void:
 		node.rotation_degrees.x = sway * 0.35
 		node.position.y = node.get_meta("base_y", node.position.y) + bob
 
+	# Soft water shimmer: scroll UV offset + gentle emission pulse.
+	for i in range(_water_mats.size()):
+		var mat: StandardMaterial3D = _water_mats[i]
+		if mat == null:
+			continue
+		var phase := float(i) * 0.7
+		mat.uv1_offset = Vector3(
+			fmod(_wind_t * 0.035 + phase * 0.01, 1.0),
+			fmod(_wind_t * 0.022 + phase * 0.013, 1.0),
+			0.0
+		)
+		mat.emission_energy_multiplier = 0.18 + sin(_wind_t * 0.9 + phase) * 0.06
+
+	for i in range(_water_planes.size()):
+		var plane: Node3D = _water_planes[i]
+		if not is_instance_valid(plane):
+			continue
+		var wphase: float = _water_phases[i] if i < _water_phases.size() else 0.0
+		plane.position.y = plane.get_meta("base_y", plane.position.y) + sin(_wind_t * 0.85 + wphase) * 0.03
+
 
 func render_world(maps: Array) -> void:
 	_clear_children()
@@ -70,6 +95,11 @@ func render_world(maps: Array) -> void:
 	_prop_mats.clear()
 	_wind_nodes.clear()
 	_wind_phases.clear()
+	_water_meshes.clear()
+	_water_mats.clear()
+	_water_planes.clear()
+	_water_phases.clear()
+	_ensure_atmosphere()
 
 	_terrain_root = Node3D.new()
 	_terrain_root.name = "Terrain"
@@ -102,6 +132,8 @@ func render_world(maps: Array) -> void:
 				_add_content_prop(tile, content_type, _content_code(tile))
 			elif content_type == "terrain":
 				_maybe_add_biome_clutter(tile)
+
+	_add_land_ambience(maps)
 
 
 func grid_to_world(tile: Dictionary) -> Vector3:
@@ -146,33 +178,28 @@ func _build_continuous_terrain(layer: String, tiles: Array) -> void:
 
 
 func _add_skin_heightfield(skin: String, tiles: Array, layer_y: float, occupancy: Dictionary, skin_at: Dictionary) -> void:
-	var mat := ArtifactsAssets.tile_material(skin)
-	mat.roughness = 0.9
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	mat.vertex_color_use_as_albedo = true
-	mat.albedo_color = Color(1, 1, 1, 1)
+	var is_water := ArtifactsAssets.is_water_skin(skin)
+	var mat: StandardMaterial3D
+	if is_water:
+		mat = ArtifactsAssets.water_material(skin)
+	else:
+		mat = ArtifactsAssets.tile_material(skin)
+		# Keep biome tint from ArtifactsAssets; only ensure filter/vertex color.
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		mat.vertex_color_use_as_albedo = true
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	var half := tile_size * 0.5 + seam_overlap * 0.5
+	# 3x3 subdivision softens the chessboard silhouette into rolling ground.
+	var subdiv := 3
 	for tile in tiles:
 		var gx := int(tile.get("x", 0))
 		var gy := int(tile.get("y", 0))
 		var cx := float(gx) * tile_size
 		var cz := float(gy) * tile_size
-
-		var corners := [
-			Vector2(cx - half, cz - half),
-			Vector2(cx + half, cz - half),
-			Vector2(cx + half, cz + half),
-			Vector2(cx - half, cz + half),
-		]
-		var heights: Array = []
-		for c in corners:
-			heights.append(layer_y + _vertex_height(c.x, c.y, skin, occupancy, skin_at))
-
-		_emit_quad(st, corners, heights, skin, occupancy, skin_at)
+		_emit_subdivided_patch(st, cx, cz, half, subdiv, layer_y, skin, occupancy, skin_at, is_water)
 
 	st.generate_normals()
 	var mesh := st.commit()
@@ -183,14 +210,70 @@ func _add_skin_heightfield(skin: String, tiles: Array, layer_y: float, occupancy
 	mesh_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_terrain_root.add_child(mesh_inst)
 
-	_add_skin_underside(skin, tiles, layer_y)
+	if is_water:
+		_water_meshes.append(mesh_inst)
+		_water_mats.append(mat)
+		_add_water_overlay_planes(skin, tiles, layer_y, occupancy, skin_at)
+		_add_water_sparkles(tiles, layer_y, skin)
+	else:
+		_add_skin_underside(skin, tiles, layer_y)
 
 
-func _emit_quad(st: SurfaceTool, corners: Array, heights: Array, skin: String, occupancy: Dictionary, skin_at: Dictionary) -> void:
-	var uvs := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+func _emit_subdivided_patch(
+	st: SurfaceTool,
+	cx: float,
+	cz: float,
+	half: float,
+	subdiv: int,
+	layer_y: float,
+	skin: String,
+	occupancy: Dictionary,
+	skin_at: Dictionary,
+	is_water: bool
+) -> void:
+	var step := (half * 2.0) / float(subdiv)
+	for iz in range(subdiv):
+		for ix in range(subdiv):
+			var x0 := cx - half + float(ix) * step
+			var z0 := cz - half + float(iz) * step
+			var x1 := x0 + step
+			var z1 := z0 + step
+			var corners := [
+				Vector2(x0, z0),
+				Vector2(x1, z0),
+				Vector2(x1, z1),
+				Vector2(x0, z1),
+			]
+			var heights: Array = []
+			for c in corners:
+				var h := layer_y + _vertex_height(c.x, c.y, skin, occupancy, skin_at)
+				if is_water:
+					# Mild ripple so water isn't a flat board.
+					h += sin(c.x * 1.7 + c.y * 1.1) * 0.02 + cos(c.x * 0.9 - c.y * 1.3) * 0.015
+				heights.append(h)
+			_emit_quad(st, corners, heights, skin, occupancy, skin_at, cx, cz, half)
+
+
+func _emit_quad(
+	st: SurfaceTool,
+	corners: Array,
+	heights: Array,
+	skin: String,
+	occupancy: Dictionary,
+	skin_at: Dictionary,
+	patch_cx: float = 0.0,
+	patch_cz: float = 0.0,
+	patch_half: float = 1.0
+) -> void:
 	var colors: Array = []
+	var uvs: Array = []
+	var uv_scale := 0.18
+	# Keep signature compatible with subdivided emitter (patch_* unused for world UVs).
+	var _keep := patch_cx + patch_cz + patch_half
 	for i in range(4):
 		colors.append(_blend_color_at(corners[i].x, corners[i].y, skin, occupancy, skin_at))
+		# Continuous world UVs; material also uses uv1_scale + triplanar.
+		uvs.append(Vector2(corners[i].x * uv_scale, corners[i].y * uv_scale))
 
 	for idx in [0, 1, 2]:
 		st.set_uv(uvs[idx])
@@ -202,25 +285,173 @@ func _emit_quad(st: SurfaceTool, corners: Array, heights: Array, skin: String, o
 		st.add_vertex(Vector3(corners[idx].x, heights[idx], corners[idx].y))
 
 
+func _add_water_sparkles(tiles: Array, layer_y: float, skin: String) -> void:
+	if tiles.is_empty():
+		return
+	# One particle field per water skin chunk — cheap sparkle / foam flecks.
+	var origin := Vector3.ZERO
+	var count := 0
+	for tile in tiles:
+		origin += grid_to_world(tile)
+		count += 1
+	if count == 0:
+		return
+	origin /= float(count)
+	origin.y = layer_y + _skin_height(skin) + 0.08
+
+	var particles := GPUParticles3D.new()
+	particles.name = "WaterSparkles_%s" % skin
+	particles.amount = mini(48, maxi(12, count * 2))
+	particles.lifetime = 2.8
+	particles.preprocess = 1.2
+	particles.visibility_aabb = AABB(Vector3(-40, -2, -40), Vector3(80, 6, 80))
+	particles.position = origin
+
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	var spread := sqrt(float(count)) * tile_size * 0.55
+	mat.emission_box_extents = Vector3(spread, 0.05, spread)
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 180.0
+	mat.initial_velocity_min = 0.02
+	mat.initial_velocity_max = 0.12
+	mat.gravity = Vector3(0, 0.02, 0)
+	mat.scale_min = 0.03
+	mat.scale_max = 0.08
+	mat.color = Color(0.75, 0.9, 1.0, 0.55)
+	particles.process_material = mat
+
+	var draw := SphereMesh.new()
+	draw.radius = 0.04
+	draw.height = 0.08
+	var draw_mat := StandardMaterial3D.new()
+	draw_mat.albedo_color = Color(0.85, 0.95, 1.0, 0.7)
+	draw_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	draw_mat.emission_enabled = true
+	draw_mat.emission = Color(0.55, 0.75, 0.95)
+	draw_mat.emission_energy_multiplier = 1.1
+	draw_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	draw.material = draw_mat
+	particles.draw_pass_1 = draw
+	_terrain_root.add_child(particles)
+
+
+func _add_land_ambience(maps: Array) -> void:
+	# Soft pollen / dust flecks over land so the world feels alive, not a static board.
+	var samples: Array = []
+	for tile in maps:
+		if not (tile is Dictionary):
+			continue
+		var skin := str(tile.get("skin", "")).to_lower()
+		if ArtifactsAssets.is_water_skin(skin) or "interior" in skin or "underground" in skin:
+			continue
+		var roll := _hash01(int(tile.get("x", 0)) + 3, int(tile.get("y", 0)) + 5)
+		if roll > 0.22:
+			continue
+		samples.append(tile)
+		if samples.size() >= 48:
+			break
+	if samples.is_empty():
+		return
+
+	var origin := Vector3.ZERO
+	for tile in samples:
+		origin += grid_to_world(tile)
+	origin /= float(samples.size())
+	origin.y += 0.55
+
+	var particles := GPUParticles3D.new()
+	particles.name = "LandPollen"
+	particles.amount = mini(36, maxi(10, samples.size()))
+	particles.lifetime = 4.5
+	particles.preprocess = 2.0
+	particles.visibility_aabb = AABB(Vector3(-50, -4, -50), Vector3(100, 12, 100))
+	particles.position = origin
+
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	var spread := sqrt(float(samples.size())) * tile_size * 1.1
+	mat.emission_box_extents = Vector3(maxf(spread, 8.0), 1.2, maxf(spread, 8.0))
+	mat.direction = Vector3(0.35, 0.2, 0.15)
+	mat.spread = 55.0
+	mat.initial_velocity_min = 0.04
+	mat.initial_velocity_max = 0.18
+	mat.gravity = Vector3(0, -0.015, 0)
+	mat.scale_min = 0.02
+	mat.scale_max = 0.055
+	mat.color = Color(0.85, 0.9, 0.55, 0.45)
+	particles.process_material = mat
+
+	var draw := SphereMesh.new()
+	draw.radius = 0.03
+	draw.height = 0.06
+	var draw_mat := StandardMaterial3D.new()
+	draw_mat.albedo_color = Color(0.9, 0.92, 0.6, 0.55)
+	draw_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	draw_mat.emission_enabled = true
+	draw_mat.emission = Color(0.7, 0.75, 0.35)
+	draw_mat.emission_energy_multiplier = 0.55
+	draw_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	draw.material = draw_mat
+	particles.draw_pass_1 = draw
+	_terrain_root.add_child(particles)
+
+
 func _add_skin_underside(skin: String, tiles: Array, layer_y: float) -> void:
-	var color := ArtifactsAssets.skin_base_color(skin).darkened(0.4)
+	# One continuous dirt shelf per skin — avoids per-tile box "board edge" look.
+	if tiles.is_empty():
+		return
+	var color := ArtifactsAssets.skin_base_color(skin).darkened(0.42)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.roughness = 1.0
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	var half := tile_size * 0.5 + seam_overlap * 0.55
 	var depth := 0.55
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for tile in tiles:
 		var gx := int(tile.get("x", 0))
 		var gy := int(tile.get("y", 0))
-		var box := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(half * 2.0, depth, half * 2.0)
-		box.mesh = mesh
-		box.material_override = mat
-		box.position = Vector3(float(gx) * tile_size, layer_y - depth * 0.35, float(gy) * tile_size)
-		box.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_terrain_root.add_child(box)
+		var cx := float(gx) * tile_size
+		var cz := float(gy) * tile_size
+		var top_y := layer_y - 0.02
+		var bot_y := layer_y - depth
+		var x0 := cx - half
+		var x1 := cx + half
+		var z0 := cz - half
+		var z1 := cz + half
+		# Bottom face
+		st.add_vertex(Vector3(x0, bot_y, z0))
+		st.add_vertex(Vector3(x1, bot_y, z0))
+		st.add_vertex(Vector3(x1, bot_y, z1))
+		st.add_vertex(Vector3(x0, bot_y, z0))
+		st.add_vertex(Vector3(x1, bot_y, z1))
+		st.add_vertex(Vector3(x0, bot_y, z1))
+		var edges := [
+			[Vector2(x0, z0), Vector2(x1, z0)],
+			[Vector2(x1, z0), Vector2(x1, z1)],
+			[Vector2(x1, z1), Vector2(x0, z1)],
+			[Vector2(x0, z1), Vector2(x0, z0)],
+		]
+		for edge in edges:
+			var a: Vector2 = edge[0]
+			var b: Vector2 = edge[1]
+			st.add_vertex(Vector3(a.x, top_y, a.y))
+			st.add_vertex(Vector3(b.x, top_y, b.y))
+			st.add_vertex(Vector3(b.x, bot_y, b.y))
+			st.add_vertex(Vector3(a.x, top_y, a.y))
+			st.add_vertex(Vector3(b.x, bot_y, b.y))
+			st.add_vertex(Vector3(a.x, bot_y, a.y))
+	st.generate_normals()
+	var mesh := st.commit()
+	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.name = "Underside_%s" % skin
+	mesh_inst.mesh = mesh
+	mesh_inst.material_override = mat
+	mesh_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_terrain_root.add_child(mesh_inst)
 
 
 func _add_biome_blend_strips(tiles: Array, layer_y: float, occupancy: Dictionary, skin_at: Dictionary) -> void:
@@ -247,8 +478,15 @@ func _add_biome_blend_strips(tiles: Array, layer_y: float, occupancy: Dictionary
 			var b_col := ArtifactsAssets.skin_base_color(nskin)
 			var mid := a_col.lerp(b_col, 0.5)
 			mid.a = 0.55
+			var water_edge := ArtifactsAssets.is_water_skin(skin) or ArtifactsAssets.is_water_skin(nskin)
 			var mat := StandardMaterial3D.new()
-			mat.albedo_color = mid
+			if water_edge:
+				mat.albedo_color = Color(0.82, 0.9, 0.95, 0.42)
+				mat.emission_enabled = true
+				mat.emission = Color(0.55, 0.75, 0.9)
+				mat.emission_energy_multiplier = 0.35
+			else:
+				mat.albedo_color = mid
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			mat.roughness = 1.0
 			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -256,14 +494,14 @@ func _add_biome_blend_strips(tiles: Array, layer_y: float, occupancy: Dictionary
 			var strip := MeshInstance3D.new()
 			var box := BoxMesh.new()
 			if dir.x != 0:
-				box.size = Vector3(seam_overlap * 2.2, 0.06, tile_size + seam_overlap)
+				box.size = Vector3(seam_overlap * (3.2 if water_edge else 2.2), 0.05 if water_edge else 0.06, tile_size + seam_overlap)
 			else:
-				box.size = Vector3(tile_size + seam_overlap, 0.06, seam_overlap * 2.2)
+				box.size = Vector3(tile_size + seam_overlap, 0.05 if water_edge else 0.06, seam_overlap * (3.2 if water_edge else 2.2))
 			strip.mesh = box
 			strip.material_override = mat
 			var mx := (float(gx) + float(nx)) * 0.5 * tile_size
 			var mz := (float(gy) + float(ny)) * 0.5 * tile_size
-			var hy := layer_y + (_surface_height(gx, gy, skin) + _surface_height(nx, ny, nskin)) * 0.5 + 0.03
+			var hy := layer_y + (_surface_height(gx, gy, skin) + _surface_height(nx, ny, nskin)) * 0.5 + (0.045 if water_edge else 0.03)
 			strip.position = Vector3(mx, hy, mz)
 			strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			_terrain_root.add_child(strip)
@@ -328,8 +566,9 @@ func _blend_color_at(wx: float, wz: float, skin: String, occupancy: Dictionary, 
 		var nskin: String = skin_at[nkey]
 		if nskin == skin:
 			continue
-		mix = mix.lerp(ArtifactsAssets.skin_base_color(nskin), 0.28)
-	return Color(1, 1, 1, 1).lerp(mix, 0.22)
+		mix = mix.lerp(ArtifactsAssets.skin_base_color(nskin), 0.45)
+	# Heavier biome wash so official map skins don't read as board tiles.
+	return Color(1, 1, 1, 1).lerp(mix, 0.52)
 
 
 func _surface_height(gx: int, gy: int, skin: String) -> float:
@@ -356,15 +595,21 @@ func _maybe_add_biome_clutter(tile: Dictionary) -> void:
 		return
 
 	var kind := _hash01(int(tile.get("x", 0)), int(tile.get("y", 0)) + 21)
-	if kind > 0.62:
+	if kind > 0.58:
 		_add_ambient_tree(root, 0.55 + kind * 0.5)
 		_add_blob_shadow(root, 0.5)
-	elif kind > 0.35:
+		if kind > 0.82:
+			_add_grass_patch(root, tile)
+	elif kind > 0.32:
 		_add_bush(root, 0.4 + kind * 0.3)
 		_add_blob_shadow(root, 0.35)
+		if kind < 0.42:
+			_add_grass_patch(root, tile)
 	else:
 		_add_grass_patch(root, tile)
 		_add_blob_shadow(root, 0.28)
+		if kind < 0.12:
+			_add_rock_cluster(root, 0.35 + kind)
 
 
 func _add_blob_shadow(root: Node3D, radius: float) -> void:
@@ -381,7 +626,7 @@ func _add_blob_shadow(root: Node3D, radius: float) -> void:
 
 
 func _add_grass_patch(root: Node3D, tile: Dictionary) -> void:
-	var count := 3 + int(_hash01(int(tile.get("x", 0)), int(tile.get("y", 0)) + 7) * 4.0)
+	var count := 5 + int(_hash01(int(tile.get("x", 0)), int(tile.get("y", 0)) + 7) * 5.0)
 	for i in range(count):
 		var tuft := MeshInstance3D.new()
 		var cone := CylinderMesh.new()
@@ -727,6 +972,26 @@ func _add_building_prop(root: Node3D, content_type: String) -> void:
 	window.material_override = wmat
 	root.add_child(window)
 
+	if content_type == "bank" or content_type == "grand_exchange":
+		base.material_override = _emissive_building_mat(content_type, base_color)
+		roof.material_override = _emissive_building_mat("%s_roof" % content_type, base_color.lightened(0.06))
+		var lantern := MeshInstance3D.new()
+		var lamp := SphereMesh.new()
+		lamp.radius = 0.1
+		lamp.height = 0.18
+		lantern.mesh = lamp
+		lantern.position = Vector3(-0.35, 0.72, 0.58)
+		var lmat := _cached_prop_mat("lantern_%s" % content_type, Color(1.0, 0.85, 0.45))
+		lmat.emission_enabled = true
+		if content_type == "grand_exchange":
+			lmat.emission = Color(1.0, 0.78, 0.25)
+			lmat.emission_energy_multiplier = 1.35
+		else:
+			lmat.emission = Color(0.35, 0.55, 1.0)
+			lmat.emission_energy_multiplier = 1.1
+		lantern.material_override = lmat
+		root.add_child(lantern)
+
 
 func _add_npc_prop(root: Node3D) -> void:
 	var robe := MeshInstance3D.new()
@@ -817,10 +1082,91 @@ func _cached_prop_mat(key: String, color: Color) -> StandardMaterial3D:
 		return _prop_mats[key]
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
-	mat.roughness = 0.72
-	mat.metallic = 0.04
+	var h := _hash01(key.hash(), 41)
+	mat.roughness = clampf(0.55 + h * 0.38, 0.45, 0.95)
+	mat.metallic = 0.03 + h * 0.05
 	_prop_mats[key] = mat
 	return mat
+
+
+func _emissive_building_mat(key: String, color: Color) -> StandardMaterial3D:
+	var cache_key := "emit_%s" % key
+	if _prop_mats.has(cache_key):
+		return _prop_mats[cache_key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color.darkened(0.08)
+	mat.roughness = 0.48 if "grand_exchange" in key else 0.62
+	mat.metallic = 0.12 if "grand_exchange" in key else 0.08
+	mat.emission_enabled = true
+	if "grand_exchange" in key:
+		mat.emission = Color(0.95, 0.72, 0.2)
+		mat.emission_energy_multiplier = 0.45
+	else:
+		mat.emission = Color(0.25, 0.4, 0.75)
+		mat.emission_energy_multiplier = 0.32
+	_prop_mats[cache_key] = mat
+	return mat
+
+
+func _add_water_overlay_planes(skin: String, tiles: Array, layer_y: float, occupancy: Dictionary, skin_at: Dictionary) -> void:
+	var mat := ArtifactsAssets.water_material(skin)
+	var half := tile_size * 0.5 + seam_overlap * 0.25
+	for tile in tiles:
+		var gx := int(tile.get("x", 0))
+		var gy := int(tile.get("y", 0))
+		var plane := MeshInstance3D.new()
+		var mesh := PlaneMesh.new()
+		mesh.size = Vector2(half * 2.0, half * 2.0)
+		plane.mesh = mesh
+		plane.material_override = mat
+		var hy := layer_y + _vertex_height(float(gx) * tile_size, float(gy) * tile_size, skin, occupancy, skin_at) + 0.05
+		plane.position = Vector3(float(gx) * tile_size, hy, float(gy) * tile_size)
+		plane.set_meta("base_y", hy)
+		plane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_terrain_root.add_child(plane)
+		_water_planes.append(plane)
+		_water_phases.append(_hash01(gx * 13 + 3, gy * 17 + 5) * TAU)
+
+
+func _ensure_atmosphere() -> void:
+	if _atmosphere != null and is_instance_valid(_atmosphere):
+		return
+	_atmosphere = GPUParticles3D.new()
+	_atmosphere.name = "AtmosphereDust"
+	_atmosphere.amount = 56
+	_atmosphere.lifetime = 8.0
+	_atmosphere.preprocess = 2.5
+	_atmosphere.explosiveness = 0.0
+	_atmosphere.randomness = 0.75
+	_atmosphere.visibility_aabb = AABB(Vector3(-48, -10, -48), Vector3(96, 32, 96))
+	_atmosphere.local_coords = false
+
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(30, 9, 30)
+	mat.direction = Vector3(0.4, 0.12, 0.25)
+	mat.spread = 32.0
+	mat.initial_velocity_min = 0.12
+	mat.initial_velocity_max = 0.5
+	mat.gravity = Vector3(0, -0.035, 0)
+	mat.damping_min = 0.04
+	mat.damping_max = 0.18
+	mat.scale_min = 0.035
+	mat.scale_max = 0.11
+	mat.color = Color(0.8, 0.76, 0.58, 0.5)
+	_atmosphere.process_material = mat
+
+	var draw := QuadMesh.new()
+	draw.size = Vector2(0.11, 0.11)
+	var draw_mat := StandardMaterial3D.new()
+	draw_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	draw_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	draw_mat.albedo_color = Color(0.84, 0.78, 0.6, 0.42)
+	draw_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	draw_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	draw.material = draw_mat
+	_atmosphere.draw_pass_1 = draw
+	add_child(_atmosphere)
 
 
 func _content_fallback(content_type: String) -> Color:
@@ -931,4 +1277,6 @@ func _on_tile_input(_camera: Node, event: InputEvent, _position: Vector3, _norma
 
 func _clear_children() -> void:
 	for child in get_children():
+		if child == _atmosphere:
+			continue
 		child.queue_free()

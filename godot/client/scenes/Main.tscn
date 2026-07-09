@@ -28,13 +28,16 @@ ambient_light_sky_contribution = 0.72
 tonemap_mode = 2
 tonemap_exposure = 1.08
 ssao_enabled = false
-glow_enabled = false
+glow_enabled = true
+glow_intensity = 0.35
+glow_strength = 0.7
+glow_bloom = 0.12
 fog_enabled = true
 fog_light_color = Color(0.78, 0.74, 0.6, 1)
-fog_density = 0.0018
-fog_aerial_perspective = 0.62
-fog_sky_affect = 0.42
-fog_sun_scatter = 0.15
+fog_density = 0.0022
+fog_aerial_perspective = 0.68
+fog_sky_affect = 0.48
+fog_sun_scatter = 0.22
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -71,9 +74,9 @@ near = 0.15
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 8, 22, 6)
 shadow_enabled = true
-light_energy = 1.35
-light_color = Color(1, 0.94, 0.82, 1)
-shadow_blur = 1.8
+light_energy = 1.42
+light_color = Color(1, 0.93, 0.78, 1)
+shadow_blur = 2.0
 directional_shadow_mode = 1
 
 [node name="FillLight" type="DirectionalLight3D" parent="."]

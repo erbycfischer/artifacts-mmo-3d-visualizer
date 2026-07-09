@@ -443,7 +443,28 @@
                              'cooldown (hash-ref char 'cooldown 0)
                              'on_cooldown #f)))))))
 
-(define (publish-world-snapshot! world characters events #:routes [routes '()])
+(define (raid-visual-record raid)
+  (and (hash? raid)
+       (hasheq 'code (hash-ref raid 'code (hash-ref raid 'name "raid"))
+               'layer (hash-ref raid 'layer "overworld")
+               'x (hash-ref raid 'x 0)
+               'y (hash-ref raid 'y 0))))
+
+(define (active-raids-list #:config [config (current-config)]
+                           #:dry-run? [dry-run? #f])
+  (cond
+    [(not (config-has-token? config)) '()]
+    [else
+     (with-handlers ([exn:fail:artifacts-api?
+                      (lambda (exn) (if dry-run? '() (raise exn)))]
+                     [exn:fail? (lambda (_exn) '())])
+       (define response (get-raids #:config config))
+       (define data (response-data response))
+       (filter values (map raid-visual-record (if (list? data) data '()))))]))
+
+(define (publish-world-snapshot! world characters events
+                                 #:routes [routes '()]
+                                 #:raids [raids '()])
   (define focuses (snapshot-focus-points characters events routes))
   (visualizer-publish!
    (world-snapshot-message
@@ -459,7 +480,7 @@
                        'layer (hash-ref e 'layer "overworld")
                        'x (hash-ref e 'x 0)
                        'y (hash-ref e 'y 0)))
-    #:raids '())))
+    #:raids raids)))
 
 (define (publish-decision! name plan)
   (visualizer-publish!
@@ -534,7 +555,8 @@
     (define routes* (reverse planned-routes))
     (bot-route-overlay routes*)
     (unless (session-owns-snapshots?)
-      (publish-world-snapshot! world* my-chars events #:routes routes*))
+      (define raids (active-raids-list #:config config #:dry-run? dry-run?))
+      (publish-world-snapshot! world* my-chars events #:routes routes* #:raids raids))
     ;; Dry-run always emits a sample market signal so Godot can exercise overlays
     ;; without waiting for a live GE scan plan.
     (when (or dry-run? saw-market-scan?)

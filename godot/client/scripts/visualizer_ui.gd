@@ -15,6 +15,7 @@ var _status_label: Label
 var _summary_label: Label
 var _selection_label: Label
 var _session_label: Label
+var _hud_label: Label
 var _action_label: Label
 var _decisions_label: Label
 var _market_label: Label
@@ -98,9 +99,12 @@ func set_session_status(status: Dictionary) -> void:
 	var err := str(status.get("error", ""))
 	var chars: Array = status.get("characters", [])
 	_refresh_character_options(chars, selected)
+	var pending := int(status.get("pending_items", 0))
 	var text := "Session: %s" % ("authenticated" if authenticated else "unauthenticated")
 	if not selected.is_empty():
 		text += " | selected %s" % selected
+	if pending > 0:
+		text += " | pending %d" % pending
 	if not err.is_empty() and err != "Null" and err != "<null>":
 		text += " | error: %s" % err
 	_session_label.text = text
@@ -171,11 +175,38 @@ func set_market_signals(signals: Array) -> void:
 
 func set_characters_from_snapshot(characters: Array) -> void:
 	_characters_cooling.clear()
+	var selected_hud := {}
 	for character in characters:
 		if character is Dictionary:
 			var name := str(character.get("name", ""))
 			_characters_cooling[name] = float(character.get("cooldown", 0))
+			if name == _selected_character:
+				selected_hud = character
+	_update_character_hud(selected_hud)
 	_update_action_buttons()
+
+
+func _update_character_hud(character: Dictionary) -> void:
+	if _hud_label == null:
+		return
+	if character.is_empty():
+		_hud_label.text = "HUD: select a character"
+		return
+	var inv: Variant = character.get("inventory", {})
+	var used := 0
+	var inv_max := 0
+	if inv is Dictionary:
+		used = int(inv.get("used", 0))
+		inv_max = int(inv.get("max", 0))
+	_hud_label.text = "HUD: %s | HP %s/%s | gold %s | inv %s/%s | CD %.0fs" % [
+		character.get("name", "?"),
+		character.get("hp", "?"),
+		character.get("max_hp", "?"),
+		character.get("gold", 0),
+		used,
+		inv_max,
+		float(character.get("cooldown", 0)),
+	]
 
 
 func get_host_url() -> String:
@@ -324,6 +355,11 @@ func _build_ui() -> void:
 		_update_action_buttons()
 	)
 	column.add_child(_character_option)
+
+	_hud_label = Label.new()
+	_hud_label.text = "HUD: select a character"
+	_hud_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_hud_label)
 
 	_summary_label = Label.new()
 	_summary_label.text = "Maps: 0 | Characters: 0"
