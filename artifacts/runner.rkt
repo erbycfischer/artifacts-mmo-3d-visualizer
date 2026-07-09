@@ -485,7 +485,10 @@
                   (execute-planned-action name plan #:config config)))
             (list name 'acted result)])])))
   (when publish-visualizer?
-    (publish-world-snapshot! world* my-chars events #:routes (reverse planned-routes))
+    (define routes* (reverse planned-routes))
+    (bot-route-overlay routes*)
+    (unless (session-owns-snapshots?)
+      (publish-world-snapshot! world* my-chars events #:routes routes*))
     ;; Dry-run always emits a sample market signal so Godot can exercise overlays
     ;; without waiting for a live GE scan plan.
     (when (or dry-run? saw-market-scan?)
@@ -534,9 +537,12 @@
                       #:dry-run? [dry-run? #f]
                       #:visualizer? [visualizer? (visualizer-enabled?)]
                       #:visualizer-port [visualizer-port 8787])
-  ;; Godot is optional. Bots keep running even if the hub fails or no client connects.
+  ;; Godot is optional. Attach to an existing hub when present; otherwise start one.
   (when visualizer?
-    (start-visualizer-hub! #:port visualizer-port #:enabled? #t))
+    (if (hub-alive?)
+        (printf "Visualizer hub already running; bot will publish overlays only.\n")
+        (start-visualizer-hub! #:port visualizer-port #:enabled? #t))
+    (flush-output))
   (printf "Loading world and encyclopedia...\n")
   (flush-output)
   (define world (load-world-index #:config config))
