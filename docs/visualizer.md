@@ -44,7 +44,7 @@ Envelope: `{ type, timestamp, data }`
 - `world.snapshot` — maps, characters, routes, events, raids
 - `bot.decision` — character, action, reason, optional target
 - `market.signal` — code, spread, score, optional x/y/layer
-- `session.status` — authenticated, characters, selected, error
+- `session.status` — authenticated, characters, selected, pending_items, error
 - `action.result` — character, action, ok, error_code, message, cooldown
 - `account.logs` — recent log entries
 
@@ -68,7 +68,7 @@ Envelope: `{ type, timestamp, data }`
 
 ## Resilience
 
-- Hub binds `127.0.0.1:8787` by default; bots continue if hub cannot start.
+- Hub binds `127.0.0.1:8787` only (not all interfaces); bots continue if hub cannot start.
 - Godot reconnects with exponential backoff (3s → 30s).
 - Fixtures-only mode keeps Godot usable offline.
 - Market signals are capped/deduped client-side.

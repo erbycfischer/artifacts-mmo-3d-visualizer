@@ -120,12 +120,12 @@ static func _configure_terrain_material(mat: StandardMaterial3D, skin: String) -
 	mat.metallic = 0.0
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mat.vertex_color_use_as_albedo = true
-	# Soft biome tint so map skins read as ground, not board-game stickers.
-	mat.albedo_color = Color(1, 1, 1, 1).lerp(base, 0.38)
-	# Stretch UVs + light triplanar to break per-tile stamp look.
-	mat.uv1_scale = Vector3(0.28, 0.28, 0.28)
+	# Stronger biome wash so official map skins read as ground, not stickers.
+	mat.albedo_color = Color(1, 1, 1, 1).lerp(base, 0.58)
+	# World-space-ish tiling + triplanar to break per-tile stamp look.
+	mat.uv1_scale = Vector3(0.16, 0.16, 0.16)
 	mat.uv1_triplanar = true
-	mat.uv1_triplanar_sharpness = 4.0
+	mat.uv1_triplanar_sharpness = 2.8
 
 	if is_water_skin(skin):
 		mat.roughness = 0.18

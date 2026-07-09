@@ -177,6 +177,7 @@ func _on_ui_character_selected(character_name: String) -> void:
 	})
 	_follow_character = true
 	_follow_selected_character()
+	ui_root.call("set_characters_from_snapshot", visual_state.get("characters"))
 
 
 func _on_connect_requested(url: String) -> void:

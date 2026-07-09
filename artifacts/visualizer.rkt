@@ -284,7 +284,7 @@
              (printf "Bots continue without Godot.\n")
              (flush-output)
              #f)])
-       (set! hub-stopper (ws-serve #:port port connection-handler))
+       (set! hub-stopper (ws-serve #:port port #:listen-ip "127.0.0.1" connection-handler))
        (set! hub-thread (thread publisher-loop))
        (set! hub-port port)
        (printf "Visualizer hub listening on ws://127.0.0.1:~a (optional).\n" port)

@@ -349,4 +349,33 @@
     (bot-route-overlay '()))
 
 
+  (test-case "enrich-character-visual includes inventory and gold"
+    (define char #hasheq((name . "alice")
+                         (layer . "overworld")
+                         (x . 1)
+                         (y . 2)
+                         (hp . 10)
+                         (max_hp . 20)
+                         (gold . 5)
+                         (cooldown . 0)
+                         (inventory_max_items . 20)
+                         (inventory . (#hasheq((code . "ash_wood") (quantity . 3))))))
+    (define visual (enrich-character-visual char))
+    (check-equal? (hash-ref visual 'gold) 5)
+    (check-equal? (hash-ref (hash-ref visual 'inventory) 'used) 3))
+
+  (test-case "standalone hub starts and stops without bot"
+    (stop-session-service!)
+    (stop-visualizer-hub!)
+    (check-true (start-visualizer-hub! #:port 8797 #:enabled? #t))
+    (check-true (hub-alive?))
+    (start-session-service! #:config missing-token-config #:poll-seconds 60 #:load-world? #f)
+    (check-true (session-owns-snapshots?))
+    (check-false (session-authenticated?))
+    (stop-session-service!)
+    (stop-visualizer-hub!)
+    (check-false (hub-alive?))
+    (check-false (session-owns-snapshots?)))
+
+
 )
