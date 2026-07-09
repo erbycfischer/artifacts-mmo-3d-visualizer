@@ -6,16 +6,33 @@ class_name CameraRig
 @export var min_height := 6.0
 @export var max_height := 40.0
 @export var orbit_sensitivity := 0.25
+@export var follow_lerp := 8.0
+@export var tile_size := 2.0
 
 var _dragging := false
 var _yaw := 0.0
+var _follow_enabled := false
+var _follow_target := Vector3.ZERO
 
 
 func _ready() -> void:
 	_yaw = rotation_degrees.y
 
 
+func set_follow_target(world_position: Vector3, enabled: bool = true) -> void:
+	_follow_target = world_position
+	_follow_enabled = enabled
+
+
+func clear_follow() -> void:
+	_follow_enabled = false
+
+
 func _process(delta: float) -> void:
+	if _follow_enabled:
+		var flat_target := Vector3(_follow_target.x, position.y, _follow_target.z)
+		position = position.lerp(flat_target, clampf(follow_lerp * delta, 0.0, 1.0))
+
 	var input := Vector3.ZERO
 	if Input.is_action_pressed("ui_left") or Input.is_key_pressed(KEY_A):
 		input.x -= 1.0
@@ -27,6 +44,7 @@ func _process(delta: float) -> void:
 		input.z += 1.0
 
 	if input != Vector3.ZERO:
+		_follow_enabled = false
 		var local_move := transform.basis * input.normalized()
 		local_move.y = 0.0
 		position += local_move.normalized() * move_speed * delta

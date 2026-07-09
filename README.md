@@ -64,11 +64,24 @@ Disable the optional hub:
 ARTIFACTS_VISUALIZER=0 racket examples/apex-bot.rkt
 ```
 
+## Player quickstart
+
+Standalone hub (no bot required):
+
+```sh
+racket examples/visualizer-hub.rkt
+godot --path godot/client
+```
+
+Auth with `ARTIFACTS_TOKEN` or the Godot Auth panel, then play Move/Fight/Gather/Rest from the UI.
+
 Open the visual client (optional watcher):
 
 ```sh
 godot --path godot/client
 ```
+
+Work in this repo (`artifacts-racket`). The misspelled `artifcacts-mmo-ai-3d-visualizer` stub is not the live client.
 
 ## Current Status
 

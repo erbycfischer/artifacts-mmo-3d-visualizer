@@ -12,7 +12,8 @@
          "../artifacts/world.rkt"
          "../artifacts/planner.rkt"
          "../artifacts/runner.rkt"
-         "../artifacts/visualizer.rkt")
+         "../artifacts/visualizer.rkt"
+         "../artifacts/session.rkt")
 
 (define test-config
   (artifacts-config "https://api.artifactsmmo.com/"
@@ -318,6 +319,34 @@
     (define wait (suggested-loop-sleep chars #:base-seconds 2 #:min-seconds 1 #:max-seconds 15))
     (check-true (>= wait 2))
     (check-true (<= wait 15)))
+
+
+  (test-case "bidirectional protocol helpers"
+    (define status (session-status-message-proto #:authenticated #f #:characters '()))
+    (check-equal? (hash-ref status 'type) "session.status")
+    (define result (action-result-message-proto "alice" 'move #:ok #f #:error-code 452 #:message "Missing"))
+    (check-equal? (hash-ref result 'type) "action.result")
+    (check-equal? (hash-ref (hash-ref result 'data) 'error_code) 452)
+    (define logs (account-logs-message-proto (list #hasheq((type . "move") (description . "ok")))))
+    (check-equal? (hash-ref logs 'type) "account.logs"))
+
+  (test-case "session.auth command without token stays unauthenticated"
+    (stop-session-service!)
+    (session-logout!)
+    (session-handle-command! #hasheq((type . "session.auth") (data . #hasheq((token . "")))))
+    (check-false (session-authenticated?))
+    (session-handle-command!
+     #hasheq((type . "player.action")
+             (data . #hasheq((character . "alice") (action . "rest") (payload . #hasheq())))))
+    ;; Unauthenticated actions publish action.result with 452; no exception.
+    (check-false (session-authenticated?)))
+
+  (test-case "hub attach helpers exist"
+    (check-false (hub-alive?))
+    (check-false (session-owns-snapshots?))
+    (bot-route-overlay (list #hasheq((character . "a") (points . ()))))
+    (check-equal? (length (bot-route-overlay)) 1)
+    (bot-route-overlay '()))
 
 
 )
