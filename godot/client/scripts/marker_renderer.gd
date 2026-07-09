@@ -66,8 +66,8 @@ func _render_characters(characters: Array, decisions: Dictionary) -> void:
 		# Ground contact shadow / decal
 		var shadow := MeshInstance3D.new()
 		var disc := CylinderMesh.new()
-		disc.top_radius = 0.38
-		disc.bottom_radius = 0.38
+		disc.top_radius = 0.48
+		disc.bottom_radius = 0.48
 		disc.height = 0.03
 		shadow.mesh = disc
 		shadow.position.y = ground_thickness + 0.02
@@ -98,7 +98,7 @@ func _render_characters(characters: Array, decisions: Dictionary) -> void:
 		label.text = ("[world] %s" % name) if is_other else name
 		label.font_size = 22
 		label.outline_size = 8
-		label.position = Vector3(0.0, ground_thickness + 1.85, 0.0)
+		label.position = Vector3(0.0, ground_thickness + 2.05, 0.0)
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		root.add_child(label)
 
@@ -114,61 +114,99 @@ func _render_characters(characters: Array, decisions: Dictionary) -> void:
 func _add_character_figure(root: Node3D, tint: Color, skin: String) -> void:
 	var body_mat := _body_mat("body_%s" % skin, tint)
 	var skin_mat := _body_mat("skin_%s" % skin, Color(0.85, 0.68, 0.55).lerp(tint, 0.15))
+	var dark_mat := _body_mat("pants_%s" % skin, tint.darkened(0.28))
+	var y0 := ground_thickness
 
-	# Legs
+	# Boots / legs — thicker for distant read
 	for side in [-1.0, 1.0]:
+		var boot := MeshInstance3D.new()
+		var boot_mesh := BoxMesh.new()
+		boot_mesh.size = Vector3(0.14, 0.12, 0.2)
+		boot.mesh = boot_mesh
+		boot.position = Vector3(side * 0.11, y0 + 0.08, 0.02)
+		boot.material_override = _body_mat("boot", Color(0.18, 0.12, 0.08))
+		root.add_child(boot)
+
 		var leg := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.08
-		cyl.bottom_radius = 0.09
-		cyl.height = 0.35
+		cyl.top_radius = 0.09
+		cyl.bottom_radius = 0.1
+		cyl.height = 0.42
 		leg.mesh = cyl
-		leg.position = Vector3(side * 0.1, ground_thickness + 0.22, 0.0)
-		leg.material_override = body_mat.duplicate()
-		(leg.material_override as StandardMaterial3D).albedo_color = tint.darkened(0.25)
+		leg.position = Vector3(side * 0.11, y0 + 0.28, 0.0)
+		leg.material_override = dark_mat
 		root.add_child(leg)
 
-	# Torso capsule
+	# Pelvis / hips block
+	var hips := MeshInstance3D.new()
+	var hips_mesh := SphereMesh.new()
+	hips_mesh.radius = 0.2
+	hips_mesh.height = 0.28
+	hips.mesh = hips_mesh
+	hips.position.y = y0 + 0.48
+	hips.scale = Vector3(1.15, 0.75, 0.95)
+	hips.material_override = dark_mat
+	root.add_child(hips)
+
+	# Torso capsule — slightly broader shoulders
 	var torso := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
-	capsule.radius = 0.2
-	capsule.height = 0.7
+	capsule.radius = 0.22
+	capsule.height = 0.78
 	torso.mesh = capsule
-	torso.position.y = ground_thickness + 0.7
+	torso.position.y = y0 + 0.82
 	torso.material_override = body_mat
 	root.add_child(torso)
 
-	# Arms
 	for side in [-1.0, 1.0]:
+		var shoulder := MeshInstance3D.new()
+		var s := SphereMesh.new()
+		s.radius = 0.12
+		s.height = 0.2
+		shoulder.mesh = s
+		shoulder.position = Vector3(side * 0.26, y0 + 1.05, 0.0)
+		shoulder.material_override = body_mat
+		root.add_child(shoulder)
+
 		var arm := MeshInstance3D.new()
 		var arm_mesh := CapsuleMesh.new()
-		arm_mesh.radius = 0.06
-		arm_mesh.height = 0.4
+		arm_mesh.radius = 0.07
+		arm_mesh.height = 0.48
 		arm.mesh = arm_mesh
-		arm.position = Vector3(side * 0.28, ground_thickness + 0.75, 0.0)
-		arm.rotation_degrees = Vector3(0.0, 0.0, side * 18.0)
+		arm.position = Vector3(side * 0.32, y0 + 0.82, 0.0)
+		arm.rotation_degrees = Vector3(8.0, 0.0, side * 22.0)
 		arm.material_override = body_mat
 		root.add_child(arm)
 
-	# Head
+	# Head + hair silhouette
 	var head := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
-	sphere.radius = 0.16
-	sphere.height = 0.32
+	sphere.radius = 0.17
+	sphere.height = 0.34
 	head.mesh = sphere
-	head.position.y = ground_thickness + 1.2
+	head.position.y = y0 + 1.35
 	head.material_override = skin_mat
 	root.add_child(head)
 
-	# Official skin texture as small face plate / accent (not full billboard body)
+	var hair := MeshInstance3D.new()
+	var hair_mesh := SphereMesh.new()
+	hair_mesh.radius = 0.18
+	hair_mesh.height = 0.28
+	hair.mesh = hair_mesh
+	hair.position = Vector3(0.0, y0 + 1.48, -0.02)
+	hair.scale = Vector3(1.05, 0.7, 1.1)
+	hair.material_override = _body_mat("hair_%s" % skin, tint.darkened(0.35))
+	root.add_child(hair)
+
+	# Official skin texture as small face plate / accent
 	var tex := ArtifactsAssets.character_texture(skin)
 	if tex != null:
 		var face := MeshInstance3D.new()
 		var quad := QuadMesh.new()
-		quad.size = Vector2(0.42, 0.55)
+		quad.size = Vector2(0.4, 0.52)
 		face.mesh = quad
 		face.material_override = ArtifactsAssets.billboard_material(tex, tint)
-		face.position = Vector3(0.0, ground_thickness + 1.35, 0.28)
+		face.position = Vector3(0.0, y0 + 1.42, 0.3)
 		root.add_child(face)
 
 

@@ -51,12 +51,35 @@ static func tile_material(skin: String) -> StandardMaterial3D:
 	if _materials.has(key):
 		return _materials[key]
 	var mat := StandardMaterial3D.new()
-	mat.roughness = 0.92
-	mat.metallic = 0.0
+	_configure_terrain_material(mat, skin_key)
+	var tex := map_texture(skin_key)
+	if tex != null:
+		mat.albedo_texture = tex
+		_watch(tex, mat)
+	_materials[key] = mat
+	return mat
+
+
+static func water_material(skin: String) -> StandardMaterial3D:
+	var skin_key := skin if not skin.is_empty() else "water_1"
+	var key := "watermat:%s" % skin_key
+	if _materials.has(key):
+		return _materials[key]
+	var mat := StandardMaterial3D.new()
+	var base := skin_base_color(skin_key)
+	mat.albedo_color = Color(base.r * 0.85 + 0.05, base.g * 0.9 + 0.08, base.b * 0.95 + 0.12, 0.62)
+	mat.roughness = 0.12
+	mat.metallic = 0.18
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	mat.uv1_scale = Vector3(1, 1, 1)
-	# Soft tint so overlapping cells blend instead of hard board edges.
-	mat.albedo_color = skin_base_color(skin_key).lightened(0.08)
+	mat.uv1_scale = Vector3(0.22, 0.22, 0.22)
+	mat.uv1_triplanar = true
+	mat.uv1_triplanar_sharpness = 2.5
+	mat.vertex_color_use_as_albedo = true
+	mat.emission_enabled = true
+	mat.emission = Color(0.12, 0.28, 0.42)
+	mat.emission_energy_multiplier = 0.22
 	var tex := map_texture(skin_key)
 	if tex != null:
 		mat.albedo_texture = tex
@@ -67,6 +90,11 @@ static func tile_material(skin: String) -> StandardMaterial3D:
 
 static func skin_base_color(skin: String) -> Color:
 	return _skin_fallback_color(skin)
+
+
+static func is_water_skin(skin: String) -> bool:
+	var s := skin.to_lower()
+	return "water" in s or "lake" in s
 
 
 static func billboard_material(tex: Texture2D, fallback: Color) -> StandardMaterial3D:
@@ -86,6 +114,47 @@ static func billboard_material(tex: Texture2D, fallback: Color) -> StandardMater
 	return mat
 
 
+static func _configure_terrain_material(mat: StandardMaterial3D, skin: String) -> void:
+	var base := skin_base_color(skin)
+	var s := skin.to_lower()
+	mat.metallic = 0.0
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mat.vertex_color_use_as_albedo = true
+	# Soft biome tint so map skins read as ground, not board-game stickers.
+	mat.albedo_color = Color(1, 1, 1, 1).lerp(base, 0.38)
+	# Stretch UVs + light triplanar to break per-tile stamp look.
+	mat.uv1_scale = Vector3(0.28, 0.28, 0.28)
+	mat.uv1_triplanar = true
+	mat.uv1_triplanar_sharpness = 4.0
+
+	if is_water_skin(skin):
+		mat.roughness = 0.18
+		mat.metallic = 0.12
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(base.r, base.g, base.b, 0.78)
+		mat.emission_enabled = true
+		mat.emission = Color(0.1, 0.25, 0.4)
+		mat.emission_energy_multiplier = 0.18
+		mat.uv1_scale = Vector3(0.2, 0.2, 0.2)
+		mat.uv1_triplanar_sharpness = 2.2
+	elif "mountain" in s or "mine" in s or "underground" in s:
+		mat.roughness = 0.92
+		mat.metallic = 0.06
+	elif "interior" in s:
+		mat.roughness = 0.78
+		mat.metallic = 0.02
+	elif "bank" in s:
+		mat.roughness = 0.55
+		mat.metallic = 0.08
+		mat.emission_enabled = true
+		mat.emission = Color(0.25, 0.4, 0.7)
+		mat.emission_energy_multiplier = 0.18
+	elif "forest" in s or "grass" in s:
+		mat.roughness = 0.86
+	else:
+		mat.roughness = 0.82
+
+
 static func _watch(placeholder_or_tex: Texture2D, mat: StandardMaterial3D) -> void:
 	for cache_key in _pending.keys():
 		if _textures.get(cache_key) == placeholder_or_tex:
@@ -98,14 +167,18 @@ static func _watch(placeholder_or_tex: Texture2D, mat: StandardMaterial3D) -> vo
 static func _skin_fallback_color(skin: String) -> Color:
 	var s := skin.to_lower()
 	if "water" in s or "lake" in s:
-		return Color(0.2, 0.45, 0.7)
+		return Color(0.18, 0.42, 0.68)
 	if "mountain" in s or "mine" in s or "underground" in s:
-		return Color(0.35, 0.34, 0.32)
+		return Color(0.38, 0.36, 0.33)
 	if "interior" in s:
 		return Color(0.45, 0.38, 0.3)
 	if "bank" in s:
 		return Color(0.32, 0.4, 0.55)
-	return Color(0.25, 0.48, 0.28)
+	if "sand" in s or "beach" in s or "desert" in s:
+		return Color(0.62, 0.55, 0.34)
+	if "snow" in s or "ice" in s:
+		return Color(0.72, 0.78, 0.82)
+	return Color(0.28, 0.5, 0.3)
 
 
 static func _request(url: String, cache_key: String, fallback_color: Color) -> Texture2D:
@@ -154,7 +227,7 @@ static func _begin_http(url: String, cache_key: String, placeholder: Texture2D) 
 				for mat in _watchers[cache_key]:
 					if mat is StandardMaterial3D:
 						(mat as StandardMaterial3D).albedo_texture = tex
-						(mat as StandardMaterial3D).albedo_color = Color(1, 1, 1, 1)
+						# Preserve biome tint configured on the material.
 				_watchers.erase(cache_key)
 			for mat_key in _materials.keys():
 				var mat: StandardMaterial3D = _materials[mat_key]

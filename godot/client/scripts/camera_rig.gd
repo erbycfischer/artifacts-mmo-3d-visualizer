@@ -3,18 +3,18 @@ class_name CameraRig
 
 @export var move_speed := 14.0
 @export var zoom_speed := 2.2
-@export var min_height := 8.0
-@export var max_height := 42.0
+@export var min_height := 7.0
+@export var max_height := 48.0
 @export var orbit_sensitivity := 0.28
 @export var pitch_sensitivity := 0.18
 @export var follow_lerp := 7.0
 @export var tile_size := 2.0
-@export var min_pitch := -62.0
-@export var max_pitch := -28.0
+@export var min_pitch := -58.0
+@export var max_pitch := -32.0
 
 var _dragging := false
 var _yaw := 28.0
-var _pitch := -48.0
+var _pitch := -46.0
 var _follow_enabled := false
 var _follow_target := Vector3.ZERO
 
