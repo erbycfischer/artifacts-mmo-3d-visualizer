@@ -2,8 +2,6 @@
 
 ;; Optional Artifacts realtime WebSocket ingest (future).
 ;; REST session polling is the supported live path today.
-;; This module exists so hub/session can later merge realtime events
-;; without bots depending on Godot.
 
 (require "config.rkt")
 
@@ -25,14 +23,13 @@
                                 #:on-message [on-message #f])
   (cond
     [(not (realtime-enabled?))
-     (printf "Realtime ingest disabled (set ARTIFACTS_REALTIME=1 to enable later).\\n")
+     (printf "Realtime ingest disabled (set ARTIFACTS_REALTIME=1 to enable later).~n")
      (flush-output)
      #f]
     [ingest-thread
      #t]
     [else
-     ;; Placeholder: do not open a live socket until protocol framing is finalized.
-     (printf "Realtime ingest stub ready for ~a (not connected yet).\\n"
+     (printf "Realtime ingest stub ready for ~a (not connected yet).~n"
              (realtime-url #:config config))
      (flush-output)
      (set! ingest-thread #t)

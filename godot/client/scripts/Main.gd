@@ -127,7 +127,8 @@ func _on_protocol_message(message: Dictionary) -> void:
 		visual_state.call("clear_live_overlays")
 	_saw_live_message = true
 	if _live_connected:
-		var authenticated := bool(visual_state.get("session_status").get("authenticated", false)) if visual_state.get("session_status") is Dictionary else false
+		var status: Variant = visual_state.get("session_status")
+		var authenticated := status is Dictionary and bool(status.get("authenticated", false))
 		if authenticated:
 			ui_root.call("set_mode", "Playing", "hub streaming")
 		else:

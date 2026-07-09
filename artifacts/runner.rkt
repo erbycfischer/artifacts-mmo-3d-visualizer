@@ -261,6 +261,11 @@
 
 (define (character-visual-record char)
   (define cd (cooldown-remaining char))
+  (define inv (character-field char 'inventory '()))
+  (define items (if (list? inv) inv '()))
+  (define used
+    (for/sum ([slot items] #:when (hash? slot))
+      (hash-ref slot 'quantity 0)))
   (hasheq 'name (character-field char 'name)
           'layer (or (character-field char 'layer) "overworld")
           'x (or (character-field char 'x) 0)
@@ -268,6 +273,11 @@
           'map_id (character-field char 'map_id)
           'hp (character-field char 'hp)
           'max_hp (character-field char 'max_hp)
+          'gold (character-field char 'gold 0)
+          'level (character-field char 'level 1)
+          'inventory (hasheq 'used used
+                             'max (character-field char 'inventory_max_items 0)
+                             'slots (min 8 (length items)))
           'cooldown cd
           'on_cooldown (and (number? cd) (> cd 0))))
 
