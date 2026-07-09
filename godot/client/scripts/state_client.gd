@@ -6,9 +6,11 @@ signal status_changed(status: String)
 
 @export var websocket_url := "ws://127.0.0.1:8787"
 @export var reconnect_seconds := 3.0
+@export var reconnect_max_seconds := 30.0
 
 var _socket := WebSocketPeer.new()
 var _reconnect_timer := 0.0
+var _reconnect_delay := 3.0
 var _started := false
 var _was_open := false
 var _last_status := ""
@@ -22,7 +24,7 @@ func connect_to_server() -> void:
 	var error := _socket.connect_to_url(websocket_url)
 	if error != OK:
 		_emit_status("websocket error: %s" % error_string(error))
-		_reconnect_timer = reconnect_seconds
+		_schedule_reconnect()
 	else:
 		_emit_status("connecting to %s" % websocket_url)
 
@@ -53,14 +55,20 @@ func _process(delta: float) -> void:
 		WebSocketPeer.STATE_OPEN:
 			if not _was_open:
 				_was_open = true
+				_reconnect_delay = reconnect_seconds
 				_emit_status("connected to %s" % websocket_url)
 			_read_packets()
 		WebSocketPeer.STATE_CLOSING:
 			return
 		WebSocketPeer.STATE_CLOSED:
 			_was_open = false
-			_emit_status("websocket closed; retrying")
-			_reconnect_timer = reconnect_seconds
+			_emit_status("websocket closed; retrying in %.0fs" % _reconnect_delay)
+			_schedule_reconnect()
+
+
+func _schedule_reconnect() -> void:
+	_reconnect_timer = _reconnect_delay
+	_reconnect_delay = minf(_reconnect_delay * 2.0, reconnect_max_seconds)
 
 
 func _read_packets() -> void:

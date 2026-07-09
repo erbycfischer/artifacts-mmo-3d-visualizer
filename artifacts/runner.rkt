@@ -1,10 +1,14 @@
 #lang racket
 
-(require racket/string
+(require json
+         racket/file
+         racket/string
          "config.rkt"
          "dsl-forms.rkt"
          "http.rkt"
+         "market.rkt"
          "planner.rkt"
+         "visualizer.rkt"
          "world.rkt")
 
 (provide fetch-all-pages
@@ -16,8 +20,11 @@
          bot-roles
          bind-bot-to-account
          execute-planned-action
+         route-for-plan
+         ge-anchor-point
          run-bot-once
-         run-bot-loop)
+         run-bot-loop
+         (all-from-out "visualizer.rkt"))
 
 (define (response-data response)
   (cond
@@ -43,10 +50,43 @@
   (build-world-index
    (fetch-all-pages get-maps #:config config #:size 100)))
 
-(define (load-encyclopedia #:config [config (current-config)])
-  (hasheq 'monsters (fetch-all-pages get-monsters #:config config)
-          'resources (fetch-all-pages get-resources #:config config)
-          'items (fetch-all-pages get-items #:config config)))
+(define encyclopedia-cache-seconds
+  (let ([v (getenv "ARTIFACTS_ENCYCLOPEDIA_CACHE_SECONDS")])
+    (or (and v (string->number v)) 900)))
+
+(define (encyclopedia-cache-path)
+  (define root (or (getenv "ARTIFACTS_CACHE_DIR")
+                   (build-path (find-system-path 'temp-dir) "artifacts-racket-cache")))
+  (make-directory* root)
+  (build-path root "encyclopedia.json"))
+
+(define (read-encyclopedia-cache)
+  (define path (encyclopedia-cache-path))
+  (and (file-exists? path)
+       (< (- (current-seconds) (file-or-directory-modify-seconds path))
+          encyclopedia-cache-seconds)
+       (with-handlers ([exn:fail? (lambda (_exn) #f)])
+         (define data (call-with-input-file path read-json))
+         (and (hash? data)
+              (hash-has-key? data 'monsters)
+              (hash-has-key? data 'resources)
+              data))))
+
+(define (write-encyclopedia-cache! data)
+  (with-handlers ([exn:fail? (lambda (_exn) (void))])
+    (call-with-output-file (encyclopedia-cache-path)
+      (lambda (out) (write-json data out))
+      #:exists 'replace)))
+
+(define (load-encyclopedia #:config [config (current-config)]
+                           #:use-cache? [use-cache? #t])
+  (or (and use-cache? (read-encyclopedia-cache))
+      (let ([fresh (hasheq 'monsters (fetch-all-pages get-monsters #:config config)
+                           'resources (fetch-all-pages get-resources #:config config)
+                           'items (fetch-all-pages get-items #:config config))])
+        (when use-cache?
+          (write-encyclopedia-cache! fresh))
+        fresh)))
 
 (define (character-data response)
   (define data (response-data response))
@@ -185,12 +225,154 @@
     [(raids) (get-raids #:config config)]
     [else (error 'execute-planned-action "unsupported planned action ~v" (planned-action-name plan))]))
 
+(define (character-visual-record char)
+  (hasheq 'name (character-field char 'name)
+          'layer (or (character-field char 'layer) "overworld")
+          'x (or (character-field char 'x) 0)
+          'y (or (character-field char 'y) 0)
+          'map_id (character-field char 'map_id)
+          'hp (character-field char 'hp)
+          'max_hp (character-field char 'max_hp)
+          'cooldown (character-field char 'cooldown 0)))
+
+(define (point-from-char char)
+  (hasheq 'layer (or (character-field char 'layer) "overworld")
+          'x (or (character-field char 'x) 0)
+          'y (or (character-field char 'y) 0)))
+
+(define (point-from-payload payload world)
+  (cond
+    [(and (hash? payload) (hash-has-key? payload 'x) (hash-has-key? payload 'y))
+     (hasheq 'layer (hash-ref payload 'layer "overworld")
+             'x (hash-ref payload 'x)
+             'y (hash-ref payload 'y))]
+    [(and (hash? payload) (hash-has-key? payload 'map_id) (world-index? world))
+     (define m (hash-ref (world-index-by-id world) (hash-ref payload 'map_id) #f))
+     (and (hash? m)
+          (hasheq 'layer (hash-ref m 'layer "overworld")
+                  'x (hash-ref m 'x 0)
+                  'y (hash-ref m 'y 0)))]
+    [else #f]))
+
+(define (route-for-plan name char plan world)
+  (and (eq? (planned-action-name plan) 'move)
+       (let ([dest (point-from-payload (planned-action-payload plan) world)])
+         (and dest
+              (hasheq 'character name
+                      'points (list (point-from-char char) dest))))))
+
+(define (orders-by-side orders side)
+  (for/list ([order orders]
+             #:when (and (hash? order)
+                         (equal? (hash-ref order 'type #f) side)))
+    order))
+
+(define (score-item-orders code orders)
+  (define buys (orders-by-side orders "buy"))
+  (define sells (orders-by-side orders "sell"))
+  (define spread (order-spread buys sells))
+  (define score (score-spread buys sells))
+  (and spread
+       score
+       (profitable-spread? buys sells #:minimum-margin 1)
+       (hasheq 'code code
+               'spread spread
+               'score score
+               'buy_depth (side-depth buys)
+               'sell_depth (side-depth sells))))
+
+(define (top-market-signals signals #:limit [limit 8])
+  (define ranked
+    (sort (filter values signals)
+          >
+          #:key (lambda (s) (hash-ref s 'score 0))))
+  (if (> (length ranked) limit)
+      (take ranked limit)
+      ranked))
+
+(define (ge-anchor-point world #:from [from #f])
+  (define origin
+    (or from #hasheq((layer . "overworld") (x . 0) (y . 0))))
+  (define ge (and (world-index? world)
+                  (nearest-typed-content world origin "grand_exchange")))
+  (and (hash? ge)
+       (hasheq 'layer (hash-ref ge 'layer "overworld")
+               'x (hash-ref ge 'x 0)
+               'y (hash-ref ge 'y 0))))
+
+(define (publish-signal-at! code spread score anchor)
+  (if (hash? anchor)
+      (visualizer-publish!
+       (market-signal-message code spread score
+                              #:x (hash-ref anchor 'x)
+                              #:y (hash-ref anchor 'y)
+                              #:layer (hash-ref anchor 'layer "overworld")))
+      (visualizer-publish!
+       (market-signal-message code spread score))))
+
+(define (publish-market-signals! #:config [config (current-config)]
+                                 #:dry-run? [dry-run? #f]
+                                 #:world [world #f]
+                                 #:from [from #f])
+  (define anchor (or (ge-anchor-point world #:from from)
+                     (and dry-run?
+                          #hasheq((layer . "overworld") (x . 0) (y . 1)))))
+  (cond
+    [dry-run?
+     (publish-signal-at! "iron_ore" 7 0.82 anchor)
+     (publish-signal-at! "ash_wood" 4 0.55
+                         (if (hash? anchor)
+                             (hash-set* anchor 'x (add1 (hash-ref anchor 'x 0)))
+                             #f))]
+    [(not (config-has-token? config))
+     (void)]
+    [else
+     (with-handlers ([exn:fail:artifacts-api? (lambda (_exn) (void))]
+                     [exn:fail? (lambda (_exn) (void))])
+       (define response (get-grand-exchange-orders #:config config #:size 100))
+       (define data (response-data response))
+       (define orders (if (list? data) data '()))
+       (define by-code (make-hash))
+       (for ([order orders] #:when (hash? order))
+         (define code (hash-ref order 'code #f))
+         (when code
+           (hash-update! by-code code (lambda (xs) (cons order xs)) '())))
+       (define signals
+         (for/list ([(code grouped) (in-hash by-code)])
+           (score-item-orders code grouped)))
+       (for ([signal (top-market-signals signals)])
+         (publish-signal-at! (hash-ref signal 'code)
+                             (hash-ref signal 'spread)
+                             (hash-ref signal 'score)
+                             anchor)))]))
+
+(define (publish-world-snapshot! world characters events #:routes [routes '()])
+  (visualizer-publish!
+   (world-snapshot-message
+    #:maps (summarize-maps-for-visualizer (world-index-maps world))
+    #:characters (map character-visual-record characters)
+    #:routes routes
+    #:events (for/list ([e events] #:when (hash? e))
+               (hasheq 'code (hash-ref e 'code (hash-ref e 'name "event"))
+                       'layer (hash-ref e 'layer "overworld")
+                       'x (hash-ref e 'x 0)
+                       'y (hash-ref e 'y 0)))
+    #:raids '())))
+
+(define (publish-decision! name plan)
+  (visualizer-publish!
+   (bot-decision-message name
+                         (planned-action-name plan)
+                         (planned-action-reason plan)
+                         #:target (planned-action-payload plan))))
+
 (define (run-bot-once bot
                       #:config [config (current-config)]
                       #:world [world #f]
                       #:encyclopedia [encyclopedia #f]
                       #:dry-run? [dry-run? #f]
-                      #:bind-account? [bind-account? #t])
+                      #:bind-account? [bind-account? #t]
+                      #:publish-visualizer? [publish-visualizer? #t])
   (define world* (or world (load-world-index #:config config)))
   (define encyclopedia*
     (or encyclopedia (load-encyclopedia #:config config)))
@@ -203,6 +385,8 @@
     (if bind-account?
         (bind-bot-to-account bot my-chars)
         bot))
+  (define planned-routes '())
+  (define saw-market-scan? #f)
   (define results
     (for/list ([spec (bot-characters bot*)])
       (define name (symbol->string (character-spec-name spec)))
@@ -230,6 +414,13 @@
             (list name 'idle #f)]
            [else
             (log-decision name plan)
+            (when (eq? (planned-action-name plan) 'grand-exchange-orders)
+              (set! saw-market-scan? #t))
+            (define route (route-for-plan name enriched plan world*))
+            (when route
+              (set! planned-routes (cons route planned-routes)))
+            (when publish-visualizer?
+              (publish-decision! name plan))
             (define result
               (if dry-run?
                   #hasheq((dry_run . #t)
@@ -237,13 +428,33 @@
                           (reason . (planned-action-reason plan)))
                   (execute-planned-action name plan #:config config)))
             (list name 'acted result)])])))
+  (when publish-visualizer?
+    (publish-world-snapshot! world* my-chars events #:routes (reverse planned-routes))
+    ;; Dry-run always emits a sample market signal so Godot can exercise overlays
+    ;; without waiting for a live GE scan plan.
+    (when (or dry-run? saw-market-scan?)
+      (define trader
+        (for/first ([c my-chars]
+                    #:when (and (hash? c)
+                                (equal? (string-downcase (format "~a" (hash-ref c 'name "")))
+                                        "trader")))
+          c))
+      (publish-market-signals! #:config config
+                               #:dry-run? dry-run?
+                               #:world world*
+                               #:from trader)))
   results)
 
 (define (run-bot-loop bot
                       #:config [config (current-config)]
                       #:iterations [iterations +inf.0]
                       #:sleep-seconds [sleep-seconds 2]
-                      #:dry-run? [dry-run? #f])
+                      #:dry-run? [dry-run? #f]
+                      #:visualizer? [visualizer? (visualizer-enabled?)]
+                      #:visualizer-port [visualizer-port 8787])
+  ;; Godot is optional. Bots keep running even if the hub fails or no client connects.
+  (when visualizer?
+    (start-visualizer-hub! #:port visualizer-port #:enabled? #t))
   (printf "Loading world and encyclopedia...\n")
   (flush-output)
   (define world (load-world-index #:config config))
@@ -272,6 +483,7 @@
                       #:config config
                       #:world world
                       #:encyclopedia encyclopedia
-                      #:dry-run? dry-run?))
+                      #:dry-run? dry-run?
+                      #:publish-visualizer? visualizer?))
       (sleep sleep-seconds)
       (loop (add1 n)))))

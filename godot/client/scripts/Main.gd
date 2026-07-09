@@ -18,6 +18,9 @@ const VisualizerUIScript = preload("res://scripts/visualizer_ui.gd")
 @onready var marker_renderer: Node3D = $WorldRoot/MarkerRenderer
 @onready var ui_root: CanvasLayer = $UIRoot
 
+var _live_connected := false
+var _saw_live_message := false
+
 
 func _ready() -> void:
 	_connect_signals()
@@ -26,7 +29,7 @@ func _ready() -> void:
 
 
 func _connect_signals() -> void:
-	state_client.status_changed.connect(ui_root.set_status)
+	state_client.status_changed.connect(_on_client_status)
 	state_client.message_received.connect(_on_protocol_message)
 	visual_state.world_snapshot_updated.connect(_on_world_snapshot_updated)
 	visual_state.bot_decision_received.connect(_on_overlay_state_changed)
@@ -49,10 +52,33 @@ func _load_fixture_messages() -> void:
 		else:
 			push_warning("Fixture did not contain a protocol message: %s" % path)
 
-	ui_root.call("set_status", "offline fixtures loaded; waiting for ws://127.0.0.1:8787")
+	_live_connected = false
+	_saw_live_message = false
+	ui_root.call("set_mode", "Offline", "fixtures; waiting for hub")
+	ui_root.call("set_status", "offline fixtures loaded; connecting to ws://127.0.0.1:8787")
+
+
+func _on_client_status(status: String) -> void:
+	ui_root.call("set_status", status)
+	var lower := status.to_lower()
+	if lower.begins_with("connected"):
+		_live_connected = true
+		if _saw_live_message:
+			ui_root.call("set_mode", "Live", "hub streaming")
+		else:
+			ui_root.call("set_mode", "Connected", "waiting for first snapshot")
+	elif "closed" in lower or "retrying" in lower or "error" in lower:
+		_live_connected = false
+		if _saw_live_message:
+			ui_root.call("set_mode", "Reconnecting", "last live data kept")
+		else:
+			ui_root.call("set_mode", "Offline", "fixtures; hub unavailable")
 
 
 func _on_protocol_message(message: Dictionary) -> void:
+	_saw_live_message = true
+	if _live_connected:
+		ui_root.call("set_mode", "Live", "hub streaming")
 	visual_state.call("apply_message", message)
 
 

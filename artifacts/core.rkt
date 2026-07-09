@@ -7,6 +7,7 @@
          "market.rkt"
          "planner.rkt"
          "scheduler.rkt"
+         "visualizer.rkt"
          "world.rkt")
 
 (provide (all-from-out "combat.rkt"
@@ -16,4 +17,5 @@
                        "market.rkt"
                        "planner.rkt"
                        "scheduler.rkt"
+                       "visualizer.rkt"
                        "world.rkt"))

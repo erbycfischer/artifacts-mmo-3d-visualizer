@@ -11,6 +11,7 @@
          cooldown-ready?
          content-at-character
          on-content?
+         nearest-typed-content
          plan-character
          best-safe-monster
          best-gather-resource

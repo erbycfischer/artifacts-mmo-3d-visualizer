@@ -3,6 +3,7 @@ class_name VisualizerUI
 
 signal overlay_changed(overlay_name: String, enabled: bool)
 
+var _mode_label: Label
 var _status_label: Label
 var _summary_label: Label
 var _selection_label: Label
@@ -15,6 +16,15 @@ var _labels_toggle: CheckButton
 
 func _ready() -> void:
 	_build_ui()
+
+
+func set_mode(mode: String, detail: String = "") -> void:
+	if _mode_label == null:
+		return
+	if detail.is_empty():
+		_mode_label.text = "Mode: %s" % mode
+	else:
+		_mode_label.text = "Mode: %s — %s" % [mode, detail]
 
 
 func set_status(status: String) -> void:
@@ -71,7 +81,7 @@ func set_decisions(decisions: Dictionary) -> void:
 	_decisions_label.text = "Decisions:\n" + "\n".join(lines)
 
 
-func set_market_signals(signals: Array[Dictionary]) -> void:
+func set_market_signals(signals: Array) -> void:
 	if _market_label == null:
 		return
 	if signals.is_empty():
@@ -80,11 +90,12 @@ func set_market_signals(signals: Array[Dictionary]) -> void:
 
 	var lines: PackedStringArray = []
 	for signal_data in signals:
-		lines.append("%s spread=%s score=%.2f" % [
-			signal_data.get("code", "?"),
-			signal_data.get("spread", "?"),
-			float(signal_data.get("score", 0.0)),
-		])
+		if signal_data is Dictionary:
+			lines.append("%s spread=%s score=%.2f" % [
+				signal_data.get("code", "?"),
+				signal_data.get("spread", "?"),
+				float(signal_data.get("score", 0.0)),
+			])
 	_market_label.text = "Market:\n" + "\n".join(lines)
 
 
@@ -97,7 +108,7 @@ func _build_ui() -> void:
 	panel.offset_left = 12.0
 	panel.offset_top = 12.0
 	panel.offset_right = 420.0
-	panel.offset_bottom = 360.0
+	panel.offset_bottom = 380.0
 	add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -115,6 +126,11 @@ func _build_ui() -> void:
 	title.text = "Artifacts 3D Visualizer"
 	title.add_theme_font_size_override("font_size", 18)
 	column.add_child(title)
+
+	_mode_label = Label.new()
+	_mode_label.text = "Mode: starting"
+	_mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_mode_label)
 
 	_status_label = Label.new()
 	_status_label.text = "Status: starting"

@@ -56,7 +56,15 @@ Run the starter DSL example:
 racket examples/starter-bot.rkt
 ```
 
-Open the visual client:
+Bots do not need Godot. The runner can publish optional live state on `ws://127.0.0.1:8787` while continuing headless.
+
+Disable the optional hub:
+
+```sh
+ARTIFACTS_VISUALIZER=0 racket examples/apex-bot.rkt
+```
+
+Open the visual client (optional watcher):
 
 ```sh
 godot --path godot/client
@@ -65,3 +73,7 @@ godot --path godot/client
 ## Current Status
 
 `#lang artifacts` now has a live runner and planner. `examples/apex-bot.rkt` binds roles to your account characters and keeps them busy with combat, gathering, banking, event intercepts, and market scans.
+
+## Encyclopedia cache
+
+`load-encyclopedia` caches monsters/resources/items under `ARTIFACTS_CACHE_DIR` (default: system temp `artifacts-racket-cache`) for `ARTIFACTS_ENCYCLOPEDIA_CACHE_SECONDS` (default 900). Bots stay headless; this only cuts repeat API fan-out.
