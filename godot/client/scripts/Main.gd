@@ -6,17 +6,23 @@ const FIXTURE_PATHS: Array[String] = [
 	"res://fixtures/market_signal.json",
 ]
 
-@onready var visual_state: VisualState = $VisualState
-@onready var state_client: StateClient = $StateClient
-@onready var map_renderer: MapRenderer = $WorldRoot/MapRenderer
-@onready var marker_renderer: MarkerRenderer = $WorldRoot/MarkerRenderer
-@onready var ui_root: VisualizerUI = $UIRoot
+const VisualStateScript = preload("res://scripts/visual_state.gd")
+const StateClientScript = preload("res://scripts/state_client.gd")
+const MapRendererScript = preload("res://scripts/map_renderer.gd")
+const MarkerRendererScript = preload("res://scripts/marker_renderer.gd")
+const VisualizerUIScript = preload("res://scripts/visualizer_ui.gd")
+
+@onready var visual_state: Node = $VisualState
+@onready var state_client: Node = $StateClient
+@onready var map_renderer: Node3D = $WorldRoot/MapRenderer
+@onready var marker_renderer: Node3D = $WorldRoot/MarkerRenderer
+@onready var ui_root: CanvasLayer = $UIRoot
 
 
 func _ready() -> void:
 	_connect_signals()
 	_load_fixture_messages()
-	state_client.connect_to_server()
+	state_client.call("connect_to_server")
 
 
 func _connect_signals() -> void:
@@ -39,38 +45,38 @@ func _load_fixture_messages() -> void:
 
 		var parsed: Variant = JSON.parse_string(file.get_as_text())
 		if parsed is Dictionary:
-			visual_state.apply_message(parsed)
+			visual_state.call("apply_message", parsed)
 		else:
 			push_warning("Fixture did not contain a protocol message: %s" % path)
 
-	ui_root.set_status("offline fixtures loaded; waiting for ws://127.0.0.1:8787")
+	ui_root.call("set_status", "offline fixtures loaded; waiting for ws://127.0.0.1:8787")
 
 
 func _on_protocol_message(message: Dictionary) -> void:
-	visual_state.apply_message(message)
+	visual_state.call("apply_message", message)
 
 
 func _on_world_snapshot_updated() -> void:
-	map_renderer.render_world(visual_state.maps)
-	marker_renderer.render_state(visual_state)
-	ui_root.set_world_summary(visual_state.maps.size(), visual_state.characters.size())
+	map_renderer.call("render_world", visual_state.get("maps"))
+	marker_renderer.call("render_state", visual_state)
+	ui_root.call("set_world_summary", visual_state.get("maps").size(), visual_state.get("characters").size())
 
 
 func _on_overlay_state_changed(_payload: Dictionary) -> void:
-	marker_renderer.render_state(visual_state)
-	ui_root.set_decisions(visual_state.latest_decisions)
-	ui_root.set_market_signals(visual_state.market_signals)
+	marker_renderer.call("render_state", visual_state)
+	ui_root.call("set_decisions", visual_state.get("latest_decisions"))
+	ui_root.call("set_market_signals", visual_state.get("market_signals"))
 
 
 func _on_overlay_changed(overlay_name: String, enabled: bool) -> void:
 	match overlay_name:
 		"routes":
-			marker_renderer.show_routes = enabled
+			marker_renderer.set("show_routes", enabled)
 		"market":
-			marker_renderer.show_market_signals = enabled
+			marker_renderer.set("show_market_signals", enabled)
 		"labels":
-			map_renderer.show_labels = enabled
-			map_renderer.render_world(visual_state.maps)
+			map_renderer.set("show_labels", enabled)
+			map_renderer.call("render_world", visual_state.get("maps"))
 		_:
 			return
-	marker_renderer.render_state(visual_state)
+	marker_renderer.call("render_state", visual_state)

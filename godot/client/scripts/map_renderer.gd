@@ -66,9 +66,9 @@ func _content_type(tile: Dictionary) -> String:
 	if not direct.is_empty():
 		return direct
 
-	var interactions := tile.get("interactions", {})
+	var interactions: Variant = tile.get("interactions", {})
 	if interactions is Dictionary:
-		var content := interactions.get("content", {})
+		var content: Variant = interactions.get("content", {})
 		if content is Dictionary:
 			return str(content.get("type", "terrain"))
 	return "terrain"
@@ -79,9 +79,9 @@ func _content_code(tile: Dictionary) -> String:
 	if not direct.is_empty():
 		return direct
 
-	var interactions := tile.get("interactions", {})
+	var interactions: Variant = tile.get("interactions", {})
 	if interactions is Dictionary:
-		var content := interactions.get("content", {})
+		var content: Variant = interactions.get("content", {})
 		if content is Dictionary:
 			return str(content.get("code", ""))
 	return ""

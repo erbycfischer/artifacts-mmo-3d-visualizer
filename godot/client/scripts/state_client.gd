@@ -10,18 +10,21 @@ signal status_changed(status: String)
 var _socket := WebSocketPeer.new()
 var _reconnect_timer := 0.0
 var _started := false
+var _was_open := false
+var _last_status := ""
 
 
 func connect_to_server() -> void:
 	_started = true
+	_was_open = false
 	_reconnect_timer = 0.0
 	_socket = WebSocketPeer.new()
 	var error := _socket.connect_to_url(websocket_url)
 	if error != OK:
-		status_changed.emit("websocket error: %s" % error_string(error))
+		_emit_status("websocket error: %s" % error_string(error))
 		_reconnect_timer = reconnect_seconds
 	else:
-		status_changed.emit("connecting to %s" % websocket_url)
+		_emit_status("connecting to %s" % websocket_url)
 
 
 func send_command(command: Dictionary) -> void:
@@ -48,16 +51,19 @@ func _process(delta: float) -> void:
 		WebSocketPeer.STATE_CONNECTING:
 			return
 		WebSocketPeer.STATE_OPEN:
+			if not _was_open:
+				_was_open = true
+				_emit_status("connected to %s" % websocket_url)
 			_read_packets()
 		WebSocketPeer.STATE_CLOSING:
 			return
 		WebSocketPeer.STATE_CLOSED:
-			status_changed.emit("websocket closed; retrying")
+			_was_open = false
+			_emit_status("websocket closed; retrying")
 			_reconnect_timer = reconnect_seconds
 
 
 func _read_packets() -> void:
-	status_changed.emit("connected to %s" % websocket_url)
 	while _socket.get_available_packet_count() > 0:
 		var packet := _socket.get_packet()
 		var parsed: Variant = JSON.parse_string(packet.get_string_from_utf8())
@@ -65,3 +71,10 @@ func _read_packets() -> void:
 			message_received.emit(parsed)
 		else:
 			push_warning("Ignored non-dictionary websocket packet.")
+
+
+func _emit_status(status: String) -> void:
+	if status == _last_status:
+		return
+	_last_status = status
+	status_changed.emit(status)

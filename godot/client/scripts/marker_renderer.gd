@@ -22,7 +22,7 @@ func _ready() -> void:
 	_market_material = _make_material(Color(0.95, 0.8, 0.2), 0.65)
 
 
-func render_state(state: VisualState) -> void:
+func render_state(state: Node) -> void:
 	_clear_children()
 	_render_characters(state.characters, state.latest_decisions)
 	if show_routes:
