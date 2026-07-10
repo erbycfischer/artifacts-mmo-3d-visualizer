@@ -4,7 +4,7 @@ Official Artifacts MMO **3D visual client** (Godot + local Racket bridge).
 
 Same live game as [artifactsmmo.com](https://artifactsmmo.com) — alternate 3D view, not a clone.
 
-Bots live in the sibling repo [`artifacts-racket`](../artifacts-racket). This repo never runs bot strategy; it only renders and plays via the official API.
+Bots live in the sibling repo [artifacts-racket](https://github.com/erbycfischer/artifacts-racket). This repo never runs bot strategy; it only renders and plays via the official API.
 
 ## Quickstart
 
