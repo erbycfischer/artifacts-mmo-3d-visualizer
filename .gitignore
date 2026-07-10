@@ -1,0 +1,9 @@
+.impeccable/
+.cursor/
+.racket-home/
+
+# Godot editor/cache
+godot/.godot/
+.godot/
+*.gd.uid
+/android/

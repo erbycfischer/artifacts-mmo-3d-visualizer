@@ -1,0 +1,1196 @@
+{
+  "type": "world.snapshot",
+  "timestamp": "2026-07-10T18:00:00Z",
+  "data": {
+    "maps": [
+      {
+        "map_id": "sand_1_-4_-3",
+        "layer": "overworld",
+        "x": -4,
+        "y": -3,
+        "skin": "sand_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "sand_1_-3_-3",
+        "layer": "overworld",
+        "x": -3,
+        "y": -3,
+        "skin": "sand_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "sand_1_-2_-3",
+        "layer": "overworld",
+        "x": -2,
+        "y": -3,
+        "skin": "sand_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_-1_-3",
+        "layer": "overworld",
+        "x": -1,
+        "y": -3,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_0_-3",
+        "layer": "overworld",
+        "x": 0,
+        "y": -3,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_1_-3",
+        "layer": "overworld",
+        "x": 1,
+        "y": -3,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_2_-3",
+        "layer": "overworld",
+        "x": 2,
+        "y": -3,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_3_-3",
+        "layer": "overworld",
+        "x": 3,
+        "y": -3,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "mountain_1_4_-3",
+        "layer": "overworld",
+        "x": 4,
+        "y": -3,
+        "skin": "mountain_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "mountain_1_5_-3",
+        "layer": "overworld",
+        "x": 5,
+        "y": -3,
+        "skin": "mountain_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "mountain_1_6_-3",
+        "layer": "overworld",
+        "x": 6,
+        "y": -3,
+        "skin": "mountain_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "sand_1_-4_-2",
+        "layer": "overworld",
+        "x": -4,
+        "y": -2,
+        "skin": "sand_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "monster_-3_-2",
+        "layer": "overworld",
+        "x": -3,
+        "y": -2,
+        "skin": "sand_1",
+        "content_type": "monster",
+        "content_code": "wolf",
+        "interactions": {
+          "content": {
+            "type": "monster",
+            "code": "wolf"
+          }
+        }
+      },
+      {
+        "map_id": "sand_1_-2_-2",
+        "layer": "overworld",
+        "x": -2,
+        "y": -2,
+        "skin": "sand_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_-1_-2",
+        "layer": "overworld",
+        "x": -1,
+        "y": -2,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_0_-2",
+        "layer": "overworld",
+        "x": 0,
+        "y": -2,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "resource_1_-2",
+        "layer": "overworld",
+        "x": 1,
+        "y": -2,
+        "skin": "water_1",
+        "content_type": "resource",
+        "content_code": "gudgeon_spot",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "gudgeon_spot"
+          }
+        }
+      },
+      {
+        "map_id": "water_1_2_-2",
+        "layer": "overworld",
+        "x": 2,
+        "y": -2,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "water_1_3_-2",
+        "layer": "overworld",
+        "x": 3,
+        "y": -2,
+        "skin": "water_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "mountain_1_4_-2",
+        "layer": "overworld",
+        "x": 4,
+        "y": -2,
+        "skin": "mountain_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "mountain_1_5_-2",
+        "layer": "overworld",
+        "x": 5,
+        "y": -2,
+        "skin": "mountain_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "monster_6_-2",
+        "layer": "overworld",
+        "x": 6,
+        "y": -2,
+        "skin": "mountain_1",
+        "content_type": "monster",
+        "content_code": "bandit",
+        "interactions": {
+          "content": {
+            "type": "monster",
+            "code": "bandit"
+          }
+        }
+      },
+      {
+        "map_id": "forest_2_-4_-1",
+        "layer": "overworld",
+        "x": -4,
+        "y": -1,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-3_-1",
+        "layer": "overworld",
+        "x": -3,
+        "y": -1,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-2_-1",
+        "layer": "overworld",
+        "x": -2,
+        "y": -1,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "resource_-1_-1",
+        "layer": "overworld",
+        "x": -1,
+        "y": -1,
+        "skin": "forest_2",
+        "content_type": "resource",
+        "content_code": "ash_tree",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "ash_tree"
+          }
+        }
+      },
+      {
+        "map_id": "forest_1_0_-1",
+        "layer": "overworld",
+        "x": 0,
+        "y": -1,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_1_-1",
+        "layer": "overworld",
+        "x": 1,
+        "y": -1,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_3_2_-1",
+        "layer": "overworld",
+        "x": 2,
+        "y": -1,
+        "skin": "forest_3",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "npc_3_-1",
+        "layer": "overworld",
+        "x": 3,
+        "y": -1,
+        "skin": "forest_1",
+        "content_type": "npc",
+        "content_code": "craftsman",
+        "interactions": {
+          "content": {
+            "type": "npc",
+            "code": "craftsman"
+          }
+        }
+      },
+      {
+        "map_id": "workshop_4_-1",
+        "layer": "overworld",
+        "x": 4,
+        "y": -1,
+        "skin": "interior_1",
+        "content_type": "workshop",
+        "content_code": "workshop",
+        "interactions": {
+          "content": {
+            "type": "workshop",
+            "code": "workshop"
+          }
+        }
+      },
+      {
+        "map_id": "resource_5_-1",
+        "layer": "overworld",
+        "x": 5,
+        "y": -1,
+        "skin": "mountain_1",
+        "content_type": "resource",
+        "content_code": "copper_rocks",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "copper_rocks"
+          }
+        }
+      },
+      {
+        "map_id": "mountain_1_6_-1",
+        "layer": "overworld",
+        "x": 6,
+        "y": -1,
+        "skin": "mountain_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-4_0",
+        "layer": "overworld",
+        "x": -4,
+        "y": 0,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-3_0",
+        "layer": "overworld",
+        "x": -3,
+        "y": 0,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "bank_-2_0",
+        "layer": "overworld",
+        "x": -2,
+        "y": 0,
+        "skin": "forest_1",
+        "content_type": "bank",
+        "content_code": "bank",
+        "interactions": {
+          "content": {
+            "type": "bank",
+            "code": "bank"
+          }
+        }
+      },
+      {
+        "map_id": "forest_1_-1_0",
+        "layer": "overworld",
+        "x": -1,
+        "y": 0,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_0_0",
+        "layer": "overworld",
+        "x": 0,
+        "y": 0,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "resource_1_0",
+        "layer": "overworld",
+        "x": 1,
+        "y": 0,
+        "skin": "forest_2",
+        "content_type": "resource",
+        "content_code": "ash_tree",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "ash_tree"
+          }
+        }
+      },
+      {
+        "map_id": "resource_2_0",
+        "layer": "overworld",
+        "x": 2,
+        "y": 0,
+        "skin": "forest_1",
+        "content_type": "resource",
+        "content_code": "ash_tree",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "ash_tree"
+          }
+        }
+      },
+      {
+        "map_id": "forest_1_3_0",
+        "layer": "overworld",
+        "x": 3,
+        "y": 0,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "resource_4_0",
+        "layer": "overworld",
+        "x": 4,
+        "y": 0,
+        "skin": "mountain_1",
+        "content_type": "resource",
+        "content_code": "copper_rocks",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "copper_rocks"
+          }
+        }
+      },
+      {
+        "map_id": "raid_5_0",
+        "layer": "overworld",
+        "x": 5,
+        "y": 0,
+        "skin": "mountain_1",
+        "content_type": "raid",
+        "content_code": "bandit_camp",
+        "interactions": {
+          "content": {
+            "type": "raid",
+            "code": "bandit_camp"
+          }
+        }
+      },
+      {
+        "map_id": "mountain_1_6_0",
+        "layer": "overworld",
+        "x": 6,
+        "y": 0,
+        "skin": "mountain_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-4_1",
+        "layer": "overworld",
+        "x": -4,
+        "y": 1,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "resource_-3_1",
+        "layer": "overworld",
+        "x": -3,
+        "y": 1,
+        "skin": "forest_2",
+        "content_type": "resource",
+        "content_code": "sunflower",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "sunflower"
+          }
+        }
+      },
+      {
+        "map_id": "forest_1_-2_1",
+        "layer": "overworld",
+        "x": -2,
+        "y": 1,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-1_1",
+        "layer": "overworld",
+        "x": -1,
+        "y": 1,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "grand_exchange_0_1",
+        "layer": "overworld",
+        "x": 0,
+        "y": 1,
+        "skin": "grand_exchange",
+        "content_type": "grand_exchange",
+        "content_code": "grand_exchange",
+        "interactions": {
+          "content": {
+            "type": "grand_exchange",
+            "code": "grand_exchange"
+          }
+        }
+      },
+      {
+        "map_id": "monster_1_1",
+        "layer": "overworld",
+        "x": 1,
+        "y": 1,
+        "skin": "forest_1",
+        "content_type": "monster",
+        "content_code": "chicken",
+        "interactions": {
+          "content": {
+            "type": "monster",
+            "code": "chicken"
+          }
+        }
+      },
+      {
+        "map_id": "event_2_1",
+        "layer": "overworld",
+        "x": 2,
+        "y": 1,
+        "skin": "forest_3",
+        "content_type": "event",
+        "content_code": "strange_apparition",
+        "interactions": {
+          "content": {
+            "type": "event",
+            "code": "strange_apparition"
+          }
+        }
+      },
+      {
+        "map_id": "forest_3_3_1",
+        "layer": "overworld",
+        "x": 3,
+        "y": 1,
+        "skin": "forest_3",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_4_1",
+        "layer": "overworld",
+        "x": 4,
+        "y": 1,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_5_1",
+        "layer": "overworld",
+        "x": 5,
+        "y": 1,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_6_1",
+        "layer": "overworld",
+        "x": 6,
+        "y": 1,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-4_2",
+        "layer": "overworld",
+        "x": -4,
+        "y": 2,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-3_2",
+        "layer": "overworld",
+        "x": -3,
+        "y": 2,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-2_2",
+        "layer": "overworld",
+        "x": -2,
+        "y": 2,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "npc_-1_2",
+        "layer": "overworld",
+        "x": -1,
+        "y": 2,
+        "skin": "forest_1",
+        "content_type": "npc",
+        "content_code": "tasks_master",
+        "interactions": {
+          "content": {
+            "type": "npc",
+            "code": "tasks_master"
+          }
+        }
+      },
+      {
+        "map_id": "forest_1_0_2",
+        "layer": "overworld",
+        "x": 0,
+        "y": 2,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_3_1_2",
+        "layer": "overworld",
+        "x": 1,
+        "y": 2,
+        "skin": "forest_3",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "monster_2_2",
+        "layer": "overworld",
+        "x": 2,
+        "y": 2,
+        "skin": "forest_1",
+        "content_type": "monster",
+        "content_code": "green_slime",
+        "interactions": {
+          "content": {
+            "type": "monster",
+            "code": "green_slime"
+          }
+        }
+      },
+      {
+        "map_id": "forest_1_3_2",
+        "layer": "overworld",
+        "x": 3,
+        "y": 2,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_4_2",
+        "layer": "overworld",
+        "x": 4,
+        "y": 2,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_5_2",
+        "layer": "overworld",
+        "x": 5,
+        "y": 2,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_3_6_2",
+        "layer": "overworld",
+        "x": 6,
+        "y": 2,
+        "skin": "forest_3",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-4_3",
+        "layer": "overworld",
+        "x": -4,
+        "y": 3,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-3_3",
+        "layer": "overworld",
+        "x": -3,
+        "y": 3,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-2_3",
+        "layer": "overworld",
+        "x": -2,
+        "y": 3,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-1_3",
+        "layer": "overworld",
+        "x": -1,
+        "y": 3,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "monster_0_3",
+        "layer": "overworld",
+        "x": 0,
+        "y": 3,
+        "skin": "forest_1",
+        "content_type": "monster",
+        "content_code": "cow",
+        "interactions": {
+          "content": {
+            "type": "monster",
+            "code": "cow"
+          }
+        }
+      },
+      {
+        "map_id": "forest_1_1_3",
+        "layer": "overworld",
+        "x": 1,
+        "y": 3,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_2_3",
+        "layer": "overworld",
+        "x": 2,
+        "y": 3,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "pine_1_3_3",
+        "layer": "overworld",
+        "x": 3,
+        "y": 3,
+        "skin": "pine_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "pine_1_4_3",
+        "layer": "overworld",
+        "x": 4,
+        "y": 3,
+        "skin": "pine_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "pine_1_5_3",
+        "layer": "overworld",
+        "x": 5,
+        "y": 3,
+        "skin": "pine_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "pine_1_6_3",
+        "layer": "overworld",
+        "x": 6,
+        "y": 3,
+        "skin": "pine_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-4_4",
+        "layer": "overworld",
+        "x": -4,
+        "y": 4,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-3_4",
+        "layer": "overworld",
+        "x": -3,
+        "y": 4,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-2_4",
+        "layer": "overworld",
+        "x": -2,
+        "y": 4,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-1_4",
+        "layer": "overworld",
+        "x": -1,
+        "y": 4,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_0_4",
+        "layer": "overworld",
+        "x": 0,
+        "y": 4,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_1_4",
+        "layer": "overworld",
+        "x": 1,
+        "y": 4,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_3_2_4",
+        "layer": "overworld",
+        "x": 2,
+        "y": 4,
+        "skin": "forest_3",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "resource_3_4",
+        "layer": "overworld",
+        "x": 3,
+        "y": 4,
+        "skin": "pine_1",
+        "content_type": "resource",
+        "content_code": "ash_tree",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "ash_tree"
+          }
+        }
+      },
+      {
+        "map_id": "snow_1_4_4",
+        "layer": "overworld",
+        "x": 4,
+        "y": 4,
+        "skin": "snow_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "snow_1_5_4",
+        "layer": "overworld",
+        "x": 5,
+        "y": 4,
+        "skin": "snow_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "snow_1_6_4",
+        "layer": "overworld",
+        "x": 6,
+        "y": 4,
+        "skin": "snow_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-4_5",
+        "layer": "overworld",
+        "x": -4,
+        "y": 5,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-3_5",
+        "layer": "overworld",
+        "x": -3,
+        "y": 5,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_-2_5",
+        "layer": "overworld",
+        "x": -2,
+        "y": 5,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_2_-1_5",
+        "layer": "overworld",
+        "x": -1,
+        "y": 5,
+        "skin": "forest_2",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_3_0_5",
+        "layer": "overworld",
+        "x": 0,
+        "y": 5,
+        "skin": "forest_3",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_1_5",
+        "layer": "overworld",
+        "x": 1,
+        "y": 5,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "forest_1_2_5",
+        "layer": "overworld",
+        "x": 2,
+        "y": 5,
+        "skin": "forest_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "snow_1_3_5",
+        "layer": "overworld",
+        "x": 3,
+        "y": 5,
+        "skin": "snow_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "snow_1_4_5",
+        "layer": "overworld",
+        "x": 4,
+        "y": 5,
+        "skin": "snow_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "snow_1_5_5",
+        "layer": "overworld",
+        "x": 5,
+        "y": 5,
+        "skin": "snow_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "snow_1_6_5",
+        "layer": "overworld",
+        "x": 6,
+        "y": 5,
+        "skin": "snow_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "underground_1_4_-1",
+        "layer": "underground",
+        "x": 4,
+        "y": -1,
+        "skin": "underground_1",
+        "content_type": "terrain",
+        "content_code": ""
+      },
+      {
+        "map_id": "monster_5_-1",
+        "layer": "underground",
+        "x": 5,
+        "y": -1,
+        "skin": "underground_1",
+        "content_type": "monster",
+        "content_code": "bat",
+        "interactions": {
+          "content": {
+            "type": "monster",
+            "code": "bat"
+          }
+        }
+      },
+      {
+        "map_id": "resource_4_0",
+        "layer": "underground",
+        "x": 4,
+        "y": 0,
+        "skin": "underground_1",
+        "content_type": "resource",
+        "content_code": "iron_rocks",
+        "interactions": {
+          "content": {
+            "type": "resource",
+            "code": "iron_rocks"
+          }
+        }
+      },
+      {
+        "map_id": "underground_1_5_0",
+        "layer": "underground",
+        "x": 5,
+        "y": 0,
+        "skin": "underground_1",
+        "content_type": "terrain",
+        "content_code": ""
+      }
+    ],
+    "characters": [
+      {
+        "name": "miner",
+        "layer": "overworld",
+        "x": 1,
+        "y": 0,
+        "skin": "men1",
+        "cooldown": 0,
+        "on_cooldown": false
+      },
+      {
+        "name": "fighter",
+        "layer": "overworld",
+        "x": 1,
+        "y": 1,
+        "skin": "men2",
+        "cooldown": 8,
+        "on_cooldown": true
+      },
+      {
+        "name": "trader",
+        "layer": "overworld",
+        "x": 0,
+        "y": 1,
+        "skin": "women1",
+        "cooldown": 0,
+        "on_cooldown": false
+      },
+      {
+        "name": "crafter",
+        "layer": "overworld",
+        "x": 4,
+        "y": -1,
+        "skin": "women2",
+        "cooldown": 0,
+        "on_cooldown": false
+      },
+      {
+        "name": "WorldHero",
+        "layer": "overworld",
+        "x": 5,
+        "y": 0,
+        "skin": "men3",
+        "other": true,
+        "level": 12
+      },
+      {
+        "name": "Delver",
+        "layer": "underground",
+        "x": 4,
+        "y": 0,
+        "skin": "men1",
+        "other": true,
+        "level": 8
+      }
+    ],
+    "routes": [
+      {
+        "character": "trader",
+        "points": [
+          {
+            "layer": "overworld",
+            "x": -2,
+            "y": 0
+          },
+          {
+            "layer": "overworld",
+            "x": -1,
+            "y": 0
+          },
+          {
+            "layer": "overworld",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "layer": "overworld",
+            "x": 0,
+            "y": 1
+          }
+        ]
+      },
+      {
+        "character": "crafter",
+        "points": [
+          {
+            "layer": "overworld",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "layer": "overworld",
+            "x": 1,
+            "y": 0
+          },
+          {
+            "layer": "overworld",
+            "x": 2,
+            "y": 0
+          },
+          {
+            "layer": "overworld",
+            "x": 3,
+            "y": -1
+          },
+          {
+            "layer": "overworld",
+            "x": 4,
+            "y": -1
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "code": "strange_apparition",
+        "layer": "overworld",
+        "x": 2,
+        "y": 1
+      }
+    ],
+    "raids": [
+      {
+        "code": "bandit_camp",
+        "layer": "overworld",
+        "x": 5,
+        "y": 0
+      }
+    ]
+  }
+}
