@@ -17,6 +17,8 @@ signal tile_hovered(tile: Dictionary)
 
 var _selected_key := ""
 var _hover_key := ""
+var _last_world_signature := ""
+var _static_built := false
 var _tile_nodes: Dictionary = {}
 var _tile_data: Dictionary = {}
 var _select_mat: StandardMaterial3D
@@ -90,7 +92,27 @@ func _process(delta: float) -> void:
 		plane.position.y = plane.get_meta("base_y", plane.position.y) + sin(_wind_t * 0.85 + wphase) * 0.03
 
 
-func render_world(maps: Array, routes: Array = []) -> void:
+func render_world(maps: Array, routes: Array = [], events: Array = [], raids: Array = []) -> void:
+	# The world grid (terrain + content + pickables) is static for a given set of
+	# maps; characters, routes, events and raids are dynamic and arrive every
+	# snapshot. Rebuild the heavy grid only when the map set actually changes, so
+	# the 1428-tile world does not churn on every WebSocket tick.
+	var signature := _world_signature(maps)
+	if signature != _last_world_signature or not _static_built:
+		_rebuild_static_world(maps)
+		_last_world_signature = signature
+		_static_built = true
+	else:
+		# Keep _tile_data fresh for hover/selection lookups even when geometry is reused.
+		_tile_data.clear()
+		for tile in maps:
+			if tile is Dictionary:
+				_tile_data[_tile_key(tile)] = tile
+
+	_dress_dynamic_overlays(maps, routes, events, raids)
+
+
+func _rebuild_static_world(maps: Array) -> void:
 	_clear_children()
 	_tile_nodes.clear()
 	_tile_data.clear()
@@ -101,6 +123,7 @@ func render_world(maps: Array, routes: Array = []) -> void:
 	_water_mats.clear()
 	_water_planes.clear()
 	_water_phases.clear()
+	_static_built = false
 	_ensure_atmosphere()
 
 	_terrain_root = Node3D.new()
@@ -137,6 +160,39 @@ func render_world(maps: Array, routes: Array = []) -> void:
 
 	_dress_settlement_paths(maps, routes)
 	_add_land_ambience(maps)
+	_refresh_highlights()
+
+
+func _dress_dynamic_overlays(_maps: Array, _routes: Array, _events: Array, _raids: Array) -> void:
+	# Path stones, ambience and the static grid are rebuilt only when the map
+	# signature changes (see _rebuild_static_world). Characters / events / raids
+	# are dynamic and already rendered by MarkerRenderer, so there is nothing
+	# extra to dress per-snapshot here. This hook exists so future per-frame
+	# overlays can be added without touching the grid rebuild path.
+	pass
+
+
+func _world_signature(maps: Array) -> String:
+	# Cheap stable key: map identity + content placement, plus the export flags
+	# that affect generated geometry (labels / grid lines) so toggling them
+	# forces a rebuild rather than being skipped as "unchanged".
+	var h := 2166136261
+	var flags := "%s|%s" % [show_labels, show_grid_lines]
+	for ch in flags:
+		h = (h ^ ch.unicode_at(0)) * 16777619
+	for tile in maps:
+		if not (tile is Dictionary):
+			continue
+		var key := "%s|%s|%s|%s|%s" % [
+			str(tile.get("layer", "overworld")),
+			int(tile.get("x", 0)),
+			int(tile.get("y", 0)),
+			str(tile.get("skin", "")),
+			str(tile.get("content_code", "")),
+		]
+		for ch in key:
+			h = (h ^ ch.unicode_at(0)) * 16777619
+	return "%d" % (h & 0x7fffffff)
 
 
 func grid_to_world(tile: Dictionary) -> Vector3:
@@ -178,6 +234,46 @@ func _build_continuous_terrain(layer: String, tiles: Array) -> void:
 
 	_add_biome_blend_strips(tiles, layer_y, occupancy, skin_at)
 	_add_layer_skirts(tiles, layer_y, occupancy)
+	_add_layer_tint(layer, tiles, layer_y)
+
+
+func _add_layer_tint(layer: String, tiles: Array, layer_y: float) -> void:
+	# Thin translucent slab tinted per layer so stacked grids read apart at a
+	# glance. Overworld uses a near-neutral wash; every other layer gets its band
+	# color. Single-tile layers still get a small tinted square marking their band.
+	if tiles.is_empty():
+		return
+	var tint := _layer_tint(layer)
+	var min_x := 999999
+	var max_x := -999999
+	var min_y := 999999
+	var max_y := -999999
+	for tile in tiles:
+		var gx := int(tile.get("x", 0))
+		var gy := int(tile.get("y", 0))
+		min_x = mini(min_x, gx)
+		max_x = maxi(max_x, gx)
+		min_y = mini(min_y, gy)
+		max_y = maxi(max_y, gy)
+	var cx := float(min_x + max_x) * 0.5 * tile_size
+	var cz := float(min_y + max_y) * 0.5 * tile_size
+	var span_x := float(max_x - min_x + 1) * tile_size
+	var span_y := float(max_y - min_y + 1) * tile_size
+
+	var slab := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(span_x, 0.05, span_y)
+	slab.mesh = box
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = tint
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = 1.0
+	slab.material_override = mat
+	slab.position = Vector3(cx, layer_y - 0.06, cz)
+	slab.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	slab.name = "LayerTint_%s" % layer
+	_terrain_root.add_child(slab)
 
 
 func _add_skin_heightfield(skin: String, tiles: Array, layer_y: float, occupancy: Dictionary, skin_at: Dictionary) -> void:
@@ -1437,15 +1533,42 @@ func _content_code(tile: Dictionary) -> String:
 
 
 func _layer_height(layer: String) -> float:
+	# Every Artifacts layer gets a distinct vertical band so overlapping (x,y)
+	# coordinates in different layers stack as readable slabs instead of
+	# z-fighting on the overworld plane. Shared with MarkerRenderer via
+	# ArtifactsAssets.layer_elevation so characters / events / raids land on the
+	# exact slab the terrain uses.
+	return ArtifactsAssets.layer_elevation(layer)
+
+
+func _layer_tint(layer: String) -> Color:
+	# Distinct, fairly saturated band colors per layer. Overworld stays near
+	# neutral so the real biome skins show through; every other layer is clearly
+	# washed. The "_" default derives a stable hue from the layer name.
 	match layer:
+		"overworld":
+			return Color(0.55, 0.62, 0.5, 0.18)
 		"underground":
-			return -2.2
+			return Color(0.45, 0.35, 0.5, 0.32)
+		"mining":
+			return Color(0.55, 0.42, 0.3, 0.32)
+		"bank":
+			return Color(0.3, 0.45, 0.85, 0.34)
+		"workshop":
+			return Color(0.7, 0.5, 0.3, 0.34)
+		"grand_exchange":
+			return Color(0.9, 0.75, 0.2, 0.34)
+		"tasks_master":
+			return Color(0.5, 0.8, 0.6, 0.34)
+		"npc":
+			return Color(0.55, 0.45, 0.75, 0.34)
 		"interior":
-			return 2.2
+			return Color(0.6, 0.5, 0.4, 0.3)
 		"sky":
-			return 4.0
+			return Color(0.6, 0.75, 0.9, 0.22)
 		_:
-			return 0.0
+			var h := fmod(float(layer.hash()), 1.0)
+			return Color.from_hsv(h, 0.45, 0.8, 0.32)
 
 
 func _skin_height(skin: String) -> float:

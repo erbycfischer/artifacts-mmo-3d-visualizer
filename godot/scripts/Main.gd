@@ -146,7 +146,7 @@ func _on_protocol_message(message: Dictionary) -> void:
 
 
 func _on_world_snapshot_updated() -> void:
-	map_renderer.call("render_world", visual_state.get("maps"), visual_state.get("routes"))
+	map_renderer.call("render_world", visual_state.get("maps"), visual_state.get("routes"), visual_state.get("events"), visual_state.get("raids"))
 	marker_renderer.call("render_state", visual_state)
 	ui_root.call("set_world_summary", visual_state.get("maps").size(), visual_state.get("characters").size())
 	ui_root.call("set_characters_from_snapshot", visual_state.get("characters"))

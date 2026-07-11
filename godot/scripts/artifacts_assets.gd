@@ -92,6 +92,38 @@ static func skin_base_color(skin: String) -> Color:
 	return _skin_fallback_color(skin)
 
 
+## Shared vertical band per Artifacts layer so the map renderer and the marker
+## renderer (characters / events / raids) place geometry on the same plane.
+## Known layers are explicit; any layer the API adds later falls through to a
+## deterministic offset derived from its name (never 0.0) so it still lands on
+## its own band instead of z-fighting on the overworld plane.
+static func layer_elevation(layer: String) -> float:
+	match layer:
+		"overworld":
+			return 0.0
+		"underground":
+			return -6.0
+		"mining":
+			return -3.0
+		"bank":
+			return 3.0
+		"workshop":
+			return 4.0
+		"grand_exchange":
+			return 5.0
+		"tasks_master":
+			return 6.0
+		"npc":
+			return 7.0
+		"interior":
+			return 9.0
+		"sky":
+			return 11.0
+		_:
+			var h := fmod(float(layer.hash()), 1.0)
+			return 8.0 + h * 8.0
+
+
 static func is_water_skin(skin: String) -> bool:
 	var s := skin.to_lower()
 	return "water" in s or "lake" in s
