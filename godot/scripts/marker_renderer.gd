@@ -95,7 +95,17 @@ func _render_characters(characters: Array, decisions: Dictionary) -> void:
 
 		var label := Label3D.new()
 		var name := str(character.get("name", "char"))
+		var level := int(character.get("level", 0))
+		var hp: Variant = character.get("hp", null)
+		var max_hp: Variant = character.get("max_hp", null)
+		var sub := ""
+		if level > 0:
+			sub += "L%d" % level
+		if hp != null and max_hp != null:
+			sub += (" " if not sub.is_empty() else "") + "%s/%s" % [hp, max_hp]
 		label.text = ("[world] %s" % name) if is_other else name
+		if not sub.is_empty():
+			label.text += "  (%s)" % sub
 		label.font_size = 22
 		label.outline_size = 8
 		label.position = Vector3(0.0, ground_thickness + 2.05, 0.0)
@@ -322,16 +332,7 @@ func _grid_to_world(tile: Dictionary) -> Vector3:
 	var x := float(tile.get("x", 0))
 	var y := float(tile.get("y", 0))
 	var layer := str(tile.get("layer", "overworld"))
-	var elevation := 0.0
-	match layer:
-		"underground":
-			elevation = -2.2
-		"interior":
-			elevation = 2.2
-		"sky":
-			elevation = 4.0
-		_:
-			elevation = 0.0
+	var elevation := ArtifactsAssets.layer_elevation(layer)
 	return Vector3(x * tile_size, elevation, y * tile_size)
 
 

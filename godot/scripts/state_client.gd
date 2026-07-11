@@ -7,6 +7,7 @@ signal status_changed(status: String)
 @export var websocket_url := "ws://127.0.0.1:8787"
 @export var reconnect_seconds := 3.0
 @export var reconnect_max_seconds := 30.0
+@export var connect_timeout_seconds := 8.0
 
 var _socket := WebSocketPeer.new()
 var _reconnect_timer := 0.0
@@ -15,6 +16,7 @@ var _started := false
 var _was_open := false
 var _last_status := ""
 var _auto_reconnect := true
+var _connecting_for := 0.0
 
 
 func set_websocket_url(url: String) -> void:
@@ -26,6 +28,7 @@ func connect_to_server() -> void:
 	_auto_reconnect = true
 	_was_open = false
 	_reconnect_timer = 0.0
+	_connecting_for = 0.0
 	_socket = WebSocketPeer.new()
 	var error := _socket.connect_to_url(websocket_url)
 	if error != OK:
@@ -33,6 +36,15 @@ func connect_to_server() -> void:
 		_schedule_reconnect()
 	else:
 		_emit_status("connecting to %s" % websocket_url)
+
+
+func _connection_lost(status_text: String) -> void:
+	_was_open = false
+	if _auto_reconnect:
+		_emit_status(status_text)
+		_schedule_reconnect()
+	else:
+		_emit_status("disconnected")
 
 
 func disconnect_from_server() -> void:
@@ -72,8 +84,16 @@ func _process(delta: float) -> void:
 	var state := _socket.get_ready_state()
 	match state:
 		WebSocketPeer.STATE_CONNECTING:
+			# Guard against a socket that never resolves (server down at connect
+			# time). Abort the attempt after a grace period and let the normal
+			# reconnect path take over. The last world is preserved in VisualState.
+			_connecting_for += delta
+			if _connecting_for >= connect_timeout_seconds:
+				_socket.close()
+				_connection_lost("connect timed out; retrying in %.0fs" % _reconnect_delay)
 			return
 		WebSocketPeer.STATE_OPEN:
+			_connecting_for = 0.0
 			if not _was_open:
 				_was_open = true
 				_reconnect_delay = reconnect_seconds
@@ -82,12 +102,7 @@ func _process(delta: float) -> void:
 		WebSocketPeer.STATE_CLOSING:
 			return
 		WebSocketPeer.STATE_CLOSED:
-			_was_open = false
-			if _auto_reconnect:
-				_emit_status("websocket closed; retrying in %.0fs" % _reconnect_delay)
-				_schedule_reconnect()
-			else:
-				_emit_status("disconnected")
+			_connection_lost("websocket closed; retrying in %.0fs" % _reconnect_delay)
 
 
 func _schedule_reconnect() -> void:

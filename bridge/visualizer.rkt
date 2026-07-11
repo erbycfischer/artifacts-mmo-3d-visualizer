@@ -162,13 +162,29 @@
 (define (summarize-one-map m)
   (define interactions (hash-ref m 'interactions #f))
   (define content (and (hash? interactions) (hash-ref interactions 'content #f)))
+  (define content-type (if (hash? content) (hash-ref content 'type "terrain") "terrain"))
+  ;; Forward the monster level / resource skill / workshop skills the official
+  ;; interactions.content object already carries, so the 3D UI can show the same
+  ;; detail the 2D grid prints (no extra API call needed).
+  (define content-level (and (hash? content) (hash-ref content 'level #f)))
+  (define content-skill
+    (cond
+      [(and (hash? content) (hash-ref content 'skill #f)) => (lambda (s) s)]
+      [(and (hash? content) (hash-has-key? content 'skills))
+       (define skills (hash-ref content 'skills '()))
+       (if (and (list? skills) (not (null? skills)))
+           (string-join (map (lambda (s) (format "~a" s)) skills) ", ")
+           #f)]
+      [else #f]))
   (hasheq 'map_id (hash-ref m 'map_id #f)
           'layer (hash-ref m 'layer "overworld")
           'x (hash-ref m 'x 0)
           'y (hash-ref m 'y 0)
           'skin (hash-ref m 'skin "forest_1")
-          'content_type (if (hash? content) (hash-ref content 'type "terrain") "terrain")
+          'content_type content-type
           'content_code (if (hash? content) (hash-ref content 'code "") "")
+          'content_level (or content-level 0)
+          'content_skill (or content-skill "")
           'interactions (if interactions interactions #hasheq())))
 
 (define (select-maps-for-visualizer maps

@@ -134,6 +134,8 @@
   (hash-set* base
              'gold (character-field char 'gold 0)
              'level (character-field char 'level 1)
+             'xp (character-field char 'xp 0)
+             'skin (character-field char 'skin "")
              'inventory (inventory-summary char)))
 
 (define (load-world-index* #:config [config (current-config)])

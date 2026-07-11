@@ -37,6 +37,9 @@ var _water_planes: Array = []
 var _water_phases: Array = []
 var _atmosphere: GPUParticles3D
 var _place_props: RefCounted
+var _terrain_layers: Dictionary = {}
+var _props_layers: Dictionary = {}
+var _layer_focus := ""
 
 
 func _ready() -> void:
@@ -117,6 +120,9 @@ func _rebuild_static_world(maps: Array) -> void:
 	_tile_nodes.clear()
 	_tile_data.clear()
 	_prop_mats.clear()
+	_terrain_layers.clear()
+	_props_layers.clear()
+	_layer_focus = ""
 	_wind_nodes.clear()
 	_wind_phases.clear()
 	_water_meshes.clear()
@@ -160,6 +166,8 @@ func _rebuild_static_world(maps: Array) -> void:
 
 	_dress_settlement_paths(maps, routes)
 	_add_land_ambience(maps)
+	if show_grid_lines:
+		_add_grid_lines(maps)
 	_refresh_highlights()
 
 
@@ -208,6 +216,20 @@ func set_selected_tile(tile: Dictionary) -> void:
 	_refresh_highlights()
 
 
+func set_layer_focus(layer: String) -> void:
+	# Layer switcher: show only the focused band (matching the 2D game's one-map
+	# view) unless layer is empty, which means "show all bands".
+	_layer_focus = layer
+	for key in _terrain_layers.keys():
+		var node: Node = _terrain_layers[key]
+		if is_instance_valid(node):
+			node.visible = layer.is_empty() or key == layer
+	for key in _props_layers.keys():
+		var node: Node = _props_layers[key]
+		if is_instance_valid(node):
+			node.visible = layer.is_empty() or key == layer
+
+
 func _build_continuous_terrain(layer: String, tiles: Array) -> void:
 	if tiles.is_empty():
 		return
@@ -228,6 +250,11 @@ func _build_continuous_terrain(layer: String, tiles: Array) -> void:
 			by_skin[skin] = []
 		(by_skin[skin] as Array).append(tile)
 
+	# Group this layer's terrain under its own node so the UI can show/hide a
+	# single band (layer switcher) like the 2D game's per-map view.
+	var lroot := _layer_node(_terrain_root, _terrain_layers, layer)
+	var start := _terrain_root.get_child_count()
+
 	var layer_y := _layer_height(layer)
 	for skin in by_skin.keys():
 		_add_skin_heightfield(skin, by_skin[skin], layer_y, occupancy, skin_at)
@@ -235,6 +262,8 @@ func _build_continuous_terrain(layer: String, tiles: Array) -> void:
 	_add_biome_blend_strips(tiles, layer_y, occupancy, skin_at)
 	_add_layer_skirts(tiles, layer_y, occupancy)
 	_add_layer_tint(layer, tiles, layer_y)
+
+	_reparent_new_children(_terrain_root, lroot, start)
 
 
 func _add_layer_tint(layer: String, tiles: Array, layer_y: float) -> void:
@@ -274,6 +303,66 @@ func _add_layer_tint(layer: String, tiles: Array, layer_y: float) -> void:
 	slab.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	slab.name = "LayerTint_%s" % layer
 	_terrain_root.add_child(slab)
+
+
+func _add_grid_lines(maps: Array) -> void:
+	# Tile-boundary lines so the 3D scene reads like the official 2D grid. One
+	# line set per layer band; edges are drawn only where a tile exists on the
+	# outer boundary of that layer's footprint (cheap, no interior double-draw).
+	var by_layer: Dictionary = {}
+	for tile in maps:
+		if not (tile is Dictionary):
+			continue
+		var layer := str(tile.get("layer", "overworld"))
+		if not by_layer.has(layer):
+			by_layer[layer] = []
+		(by_layer[layer] as Array).append(tile)
+
+	for layer in by_layer.keys():
+		var tiles: Array = by_layer[layer]
+		var layer_y := ArtifactsAssets.layer_elevation(layer)
+		var occupancy: Dictionary = {}
+		for tile in tiles:
+			occupancy["%d,%d" % [int(tile.get("x", 0)), int(tile.get("y", 0))]] = true
+
+		var grid := Node3D.new()
+		grid.name = "GridLines_%s" % layer
+		grid.position.y = layer_y + 0.07
+		_terrain_root.add_child(grid)
+
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.92, 0.95, 0.85, 0.5)
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mat.disable_receive_shadows = true
+
+		var seen_edges: Dictionary = {}
+		for tile in tiles:
+			var gx := int(tile.get("x", 0))
+			var gy := int(tile.get("y", 0))
+			for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var nx := gx + int(dir.x)
+				var ny := gy + int(dir.y)
+				if occupancy.has("%d,%d" % [nx, ny]):
+					continue
+				var edge_key := "%d,%d|%d,%d" % [mini(gx, nx), mini(gy, ny), maxi(gx, nx), maxi(gy, ny)]
+				if seen_edges.has(edge_key):
+					continue
+				seen_edges[edge_key] = true
+				var line := MeshInstance3D.new()
+				var box := BoxMesh.new()
+				if dir.x != 0:
+					box.size = Vector3(tile_size, 0.02, 0.05)
+				else:
+					box.size = Vector3(0.05, 0.02, tile_size)
+				line.mesh = box
+				line.material_override = mat
+				line.position = Vector3(float(gx) * tile_size + float(int(dir.x)) * tile_size * 0.5,
+						0.0,
+						float(gy) * tile_size + float(int(dir.y)) * tile_size * 0.5)
+				line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				grid.add_child(line)
 
 
 func _add_skin_heightfield(skin: String, tiles: Array, layer_y: float, occupancy: Dictionary, skin_at: Dictionary) -> void:
@@ -829,6 +918,31 @@ func _props():
 	return _place_props
 
 
+func _layer_node(parent: Node, registry: Dictionary, layer: String) -> Node3D:
+	if registry.has(layer) and is_instance_valid(registry[layer]):
+		return registry[layer]
+	var node := Node3D.new()
+	node.name = "Layer_%s" % layer
+	parent.add_child(node)
+	if parent == _terrain_root:
+		_terrain_layers[layer] = node
+	else:
+		_props_layers[layer] = node
+	# Respect any active layer focus when the band is created.
+	node.visible = _layer_focus.is_empty() or _layer_focus == layer
+	return node
+
+
+func _reparent_new_children(source: Node, target: Node, start_index: int) -> void:
+	var children := source.get_children()
+	for i in range(start_index, children.size()):
+		var child: Node = children[i]
+		if child == _atmosphere:
+			continue
+		source.remove_child(child)
+		target.add_child(child)
+
+
 func _try_add_kenney(root: Node3D, node: Node3D) -> bool:
 	if node == null:
 		return false
@@ -970,16 +1084,17 @@ func _add_tile_pickable(tile: Dictionary) -> void:
 	tile_body.add_child(hover_plane)
 
 	if show_labels:
-		var content_code := _content_code(tile)
-		if not content_code.is_empty():
-			_add_label(tile_body, content_code, 0.2)
+		var label_text := _content_detail(tile)
+		if not label_text.is_empty():
+			_add_label(tile_body, label_text, 0.2)
 
 
 func _add_content_prop(tile: Dictionary, content_type: String, content_code: String) -> void:
 	var root := Node3D.new()
 	root.name = "Prop_%s_%s" % [content_type, content_code]
 	root.position = grid_to_world(tile) + Vector3(0.0, 0.02, 0.0)
-	_props_root.add_child(root)
+	var layer := str(tile.get("layer", "overworld"))
+	_layer_node(_props_root, _props_layers, layer).add_child(root)
 
 	_add_blob_shadow(root, 0.62)
 
@@ -1016,6 +1131,18 @@ func _add_content_prop(tile: Dictionary, content_type: String, content_code: Str
 		accent.mesh = quad
 		accent.material_override = ArtifactsAssets.billboard_material(tex, _content_fallback(content_type))
 		root.add_child(accent)
+
+	# Floating detail label (code + level/skill) so the 3D tile carries the
+	# same information the 2D grid prints on/near the tile.
+	var detail := _content_detail(tile)
+	if not detail.is_empty():
+		var label := Label3D.new()
+		label.text = detail
+		label.font_size = 16
+		label.outline_size = 6
+		label.position = Vector3(0.0, 2.7 if (content_type == "raid") else 2.25, 0.0)
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		root.add_child(label)
 
 
 func _add_tree_prop(root: Node3D, code: String) -> void:
@@ -1530,6 +1657,61 @@ func _content_code(tile: Dictionary) -> String:
 		if content is Dictionary:
 			return str(content.get("code", ""))
 	return ""
+
+
+func _content_level(tile: Dictionary) -> int:
+	# Monsters expose a `level` on interaction content; parity with the 2D UI
+	# which shows the monster level on the tile. The bridge forwards it as the
+	# top-level `content_level`; fall back to the raw interactions object.
+	var direct := int(tile.get("content_level", 0))
+	if direct > 0:
+		return direct
+	var interactions: Variant = tile.get("interactions", {})
+	if interactions is Dictionary:
+		var content: Variant = interactions.get("content", {})
+		if content is Dictionary and content.get("level", null) != null:
+			return int(content.get("level", 0))
+	return 0
+
+
+func _content_skill(tile: Dictionary) -> String:
+	# Resources expose a `skill` (gathering skill) and workshops a `skills`
+	# array (crafting skills). The 2D UI surfaces these so the player knows what
+	# skill a node trains / what a workshop can craft. Bridge forwards it as
+	# `content_skill`; fall back to the raw interactions object.
+	var direct := str(tile.get("content_skill", ""))
+	if not direct.is_empty():
+		return direct
+	var interactions: Variant = tile.get("interactions", {})
+	if not (interactions is Dictionary):
+		return ""
+	var content: Variant = interactions.get("content", {})
+	if not (content is Dictionary):
+		return ""
+	if content.get("skill", null) != null:
+		return str(content.get("skill", ""))
+	var skills: Variant = content.get("skills", [])
+	if skills is Array and skills.size() > 0:
+		var names: PackedStringArray = []
+		for s in skills:
+			names.append(str(s))
+		return ", ".join(names)
+	return ""
+
+
+func _content_detail(tile: Dictionary) -> String:
+	# The full human-readable line the 2D grid UI shows for a tile: content type,
+	# code, and any level / skill the API exposes. Used by tooltips and labels.
+	var content_type := _content_type(tile)
+	var code := _content_code(tile)
+	var parts: PackedStringArray = [code if not code.is_empty() else content_type]
+	var level := _content_level(tile)
+	if level > 0:
+		parts.append("lvl %d" % level)
+	var skill := _content_skill(tile)
+	if not skill.is_empty():
+		parts.append(skill)
+	return " ".join(parts)
 
 
 func _layer_height(layer: String) -> float:
