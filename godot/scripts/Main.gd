@@ -1,5 +1,7 @@
 extends Node3D
 
+const ArtifactsAssets = preload("res://scripts/artifacts_assets.gd")
+
 const FIXTURE_PATHS: Array[String] = [
 	"res://fixtures/world_snapshot.json",
 	"res://fixtures/bot_decision.json",
@@ -13,11 +15,13 @@ const SETTINGS_PATH := "user://settings.cfg"
 @onready var marker_renderer: Node3D = $WorldRoot/MarkerRenderer
 @onready var camera_rig: Node3D = $CameraRig
 @onready var ui_root: CanvasLayer = $UIRoot
+@onready var minimap: Control = $UIRoot/Minimap
 
 var _live_connected := false
 var _saw_live_message := false
 var _fixtures_only := false
 var _follow_character := true
+var _active_layer := "overworld"
 
 
 func _ready() -> void:
@@ -69,6 +73,10 @@ func _connect_signals() -> void:
 	ui_root.character_selected.connect(_on_ui_character_selected)
 	ui_root.action_requested.connect(_on_action_requested)
 	ui_root.fixtures_only_toggled.connect(_on_fixtures_only_toggled)
+	ui_root.grid_toggled.connect(_on_grid_toggled)
+	ui_root.topdown_toggled.connect(_on_topdown_toggled)
+	ui_root.layer_selected.connect(_on_layer_selected)
+	ui_root.minimap_toggled.connect(_on_minimap_toggled)
 
 
 func _load_settings() -> void:
@@ -148,13 +156,18 @@ func _on_protocol_message(message: Dictionary) -> void:
 func _on_world_snapshot_updated() -> void:
 	map_renderer.call("render_world", visual_state.get("maps"), visual_state.get("routes"), visual_state.get("events"), visual_state.get("raids"))
 	marker_renderer.call("render_state", visual_state)
-	ui_root.call("set_world_summary", visual_state.get("maps").size(), visual_state.get("characters").size())
+	minimap.call("render", visual_state, _active_layer)
+	var maps: Array = visual_state.get("maps")
+	ui_root.call("set_world_summary", maps.size(), visual_state.get("characters").size())
+	ui_root.call("set_layers", _collect_layers(maps))
 	ui_root.call("set_characters_from_snapshot", visual_state.get("characters"))
+	ui_root.call("set_selected_character_info", visual_state.call("find_character", visual_state.get("selected_character")))
 	_follow_selected_character()
 
 
 func _on_overlay_state_changed(_payload: Dictionary) -> void:
 	marker_renderer.call("render_state", visual_state)
+	minimap.call("render", visual_state, _active_layer)
 	ui_root.call("set_decisions", visual_state.get("latest_decisions"))
 	ui_root.call("set_market_signals", visual_state.get("market_signals"))
 
@@ -176,6 +189,7 @@ func _on_account_logs(entries: Array) -> void:
 
 
 func _on_character_selected(character_name: String) -> void:
+	minimap.call("set_selected_character", character_name)
 	# Keep bridge selection in sync when VisualState auto-picks first character.
 	if _live_connected and not character_name.is_empty():
 		state_client.call("send_command", {
@@ -266,6 +280,47 @@ func _follow_selected_character() -> void:
 		float(character.get("y", 0)) * tile_size
 	)
 	camera_rig.call("set_follow_target", world_pos, true)
+
+
+func _collect_layers(maps: Array) -> Array:
+	var seen: Dictionary = {}
+	var out: Array = []
+	for tile in maps:
+		if not (tile is Dictionary):
+			continue
+		var layer := str(tile.get("layer", "overworld"))
+		if not seen.has(layer):
+			seen[layer] = true
+			out.append(layer)
+	return out
+
+
+func _on_grid_toggled(enabled: bool) -> void:
+	map_renderer.set("show_grid_lines", enabled)
+	map_renderer.call("render_world", visual_state.get("maps"), visual_state.get("routes"), visual_state.get("events"), visual_state.get("raids"))
+
+
+func _on_topdown_toggled(enabled: bool) -> void:
+	camera_rig.call("set_top_down", enabled)
+
+
+func _on_layer_selected(layer: String) -> void:
+	# Dim all other layers so the chosen band reads like the focused 2D map,
+	# and frame the camera on it.
+	_active_layer = layer
+	minimap.call("set_active_layer", layer)
+	minimap.call("render", visual_state, layer)
+	map_renderer.call("set_layer_focus", layer)
+	var target_y := ArtifactsAssets.layer_elevation(layer)
+	camera_rig.call("clear_follow")
+	camera_rig.global_position = Vector3(camera_rig.global_position.x, target_y, camera_rig.global_position.z)
+
+
+func _on_minimap_toggled(enabled: bool) -> void:
+	minimap.visible = enabled
+	if enabled:
+		minimap.call("render", visual_state, _active_layer)
+
 
 
 func _on_overlay_changed(overlay_name: String, enabled: bool) -> void:

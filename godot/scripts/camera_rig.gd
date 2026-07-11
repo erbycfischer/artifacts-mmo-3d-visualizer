@@ -11,12 +11,15 @@ class_name CameraRig
 @export var tile_size := 2.0
 @export var min_pitch := -58.0
 @export var max_pitch := -32.0
+@export var top_down_ortho_size := 22.0
 
 var _dragging := false
 var _yaw := 28.0
 var _pitch := -46.0
 var _follow_enabled := false
 var _follow_target := Vector3.ZERO
+var _top_down := false
+var _ortho_size := 22.0
 
 
 func _ready() -> void:
@@ -34,6 +37,28 @@ func set_follow_target(world_position: Vector3, enabled: bool = true) -> void:
 
 func clear_follow() -> void:
 	_follow_enabled = false
+
+
+func set_top_down(enabled: bool) -> void:
+	_top_down = enabled
+	var camera := get_node_or_null("Camera3D") as Camera3D
+	if camera == null:
+		return
+	if enabled:
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+		camera.position = Vector3(0.0, maxf(camera.position.y, 30.0), 0.0)
+		camera.size = _ortho_size
+	else:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		camera.fov = 46.0
+		camera.position = Vector3(0.0, 16.5, 14.5)
+		rotation_degrees = Vector3(_pitch, _yaw, 0.0)
+		camera.look_at(global_position + Vector3(0, 0.5, 0), Vector3.UP)
+
+
+func is_top_down() -> bool:
+	return _top_down
 
 
 func _process(delta: float) -> void:
@@ -58,7 +83,15 @@ func _process(delta: float) -> void:
 		if local_move.length_squared() > 0.0001:
 			position += local_move.normalized() * move_speed * delta
 
-	rotation_degrees = Vector3(_pitch, _yaw, 0.0)
+	if _top_down:
+		# In top-down orthographic mode only panning matters; keep the overhead view.
+		rotation_degrees.x = -90.0
+		rotation_degrees.z = 0.0
+		var camera := get_node_or_null("Camera3D") as Camera3D
+		if camera:
+			camera.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	else:
+		rotation_degrees = Vector3(_pitch, _yaw, 0.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -70,14 +103,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			_zoom(zoom_speed)
 	elif event is InputEventMouseMotion and _dragging:
-		_yaw -= event.relative.x * orbit_sensitivity
-		_pitch -= event.relative.y * pitch_sensitivity
-		_pitch = clampf(_pitch, min_pitch, max_pitch)
+		if _top_down:
+			# Middle-drag pans the overhead view.
+			position.x -= event.relative.x * 0.05 * (_ortho_size / 22.0)
+			position.z -= event.relative.y * 0.05 * (_ortho_size / 22.0)
+		else:
+			_yaw -= event.relative.x * orbit_sensitivity
+			_pitch -= event.relative.y * pitch_sensitivity
+			_pitch = clampf(_pitch, min_pitch, max_pitch)
 
 
 func _zoom(amount: float) -> void:
 	var camera := get_node_or_null("Camera3D") as Camera3D
 	if camera == null:
 		return
-	camera.position.y = clampf(camera.position.y + amount, min_height, max_height)
-	camera.position.z = clampf(camera.position.z + amount * 0.85, 10.0, 52.0)
+	if _top_down:
+		_ortho_size = clampf(_ortho_size + amount, 6.0, 80.0)
+		camera.size = _ortho_size
+	else:
+		camera.position.y = clampf(camera.position.y + amount, min_height, max_height)
+		camera.position.z = clampf(camera.position.z + amount * 0.85, 10.0, 52.0)
