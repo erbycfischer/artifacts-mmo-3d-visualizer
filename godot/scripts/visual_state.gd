@@ -8,6 +8,7 @@ signal selection_changed(tile: Dictionary)
 signal session_status_received(status: Dictionary)
 signal action_result_received(result: Dictionary)
 signal account_logs_received(entries: Array)
+signal session_login_required_received(payload: Dictionary)
 signal selected_character_changed(character_name: String)
 
 var maps: Array[Dictionary] = []
@@ -38,6 +39,8 @@ func apply_message(message: Dictionary) -> void:
 			_apply_market_signal(data)
 		"session.status":
 			_apply_session_status(data)
+		"session.login-required":
+			session_login_required_received.emit(data)
 		"action.result":
 			_apply_action_result(data)
 		"account.logs":

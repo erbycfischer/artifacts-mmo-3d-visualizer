@@ -52,6 +52,7 @@ func _connect_signals() -> void:
 	visual_state.bot_decision_received.connect(_on_overlay_state_changed)
 	visual_state.market_signal_received.connect(_on_overlay_state_changed)
 	visual_state.session_status_received.connect(_on_session_status)
+	visual_state.session_login_required_received.connect(_on_login_required)
 	visual_state.action_result_received.connect(_on_action_result)
 	visual_state.account_logs_received.connect(_on_account_logs)
 	visual_state.selection_changed.connect(ui_root.set_selected_tile)
@@ -160,6 +161,10 @@ func _on_overlay_state_changed(_payload: Dictionary) -> void:
 
 func _on_session_status(status: Dictionary) -> void:
 	ui_root.call("set_session_status", status)
+
+
+func _on_login_required(payload: Dictionary) -> void:
+	ui_root.call("set_login_required", payload)
 
 
 func _on_action_result(result: Dictionary) -> void:

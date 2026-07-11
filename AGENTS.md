@@ -8,6 +8,7 @@
 ## Learned Workspace Facts
 
 - Path: `/home/dirt/artifacts-mmo-ai-3d-visualizer` — independent git repo from `artifacts-racket`.
+- GitHub remote: `https://github.com/erbycfischer/artifacts-mmo-3d-visualizer.git` (sibling `artifacts-racket` is `erbycfischer/artifacts-racket`).
 - Run bridge with `PLTCOLLECTS="$HOME/artifacts-racket:" racket bridge.rkt`.
 - Open Godot at `godot/` (`godot --path godot`).
 - Bridge polls official Artifacts REST; bots appear via character state with zero bot hooks.

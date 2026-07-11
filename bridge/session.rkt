@@ -18,11 +18,14 @@
 (provide session-authenticated?
          session-selected
          session-characters
+         session-needs-login?
+         session-login-url
          session-set-token!
          session-logout!
          session-select!
          session-status-message
          action-result-message
+         session-login-required-message
          merge-other-characters
          cooldown-from-action-response
          account-logs-message
@@ -48,6 +51,14 @@
   (or (let ([v (getenv "ARTIFACTS_OTHERS_POLL_SECONDS")])
         (and v (string->number v)))
       15))
+
+;; Artifacts has no OAuth: a player token is issued on the website. Viewing the
+;; world is fully public (no token). Playing requires a token, which the user
+;; fetches from the site and pastes into the client (or sets ARTIFACTS_API_TOKEN).
+(define session-login-url "https://artifactsmmo.com")
+
+(define (session-needs-login?)
+  (not (session-authenticated?)))
 
 (define (with-session thunk)
   (call-with-semaphore session-sema thunk))
@@ -160,10 +171,19 @@
   (make-protocol-message
    "session.status"
    (hasheq 'authenticated (session-authenticated?)
+           'needs_login (not (session-authenticated?))
+           'login_url session-login-url
            'selected session-selected-name
            'characters (map character-status-record session-chars)
            'pending_items pending
            'error error)))
+
+(define (session-login-required-message #:message [message #f])
+  (make-protocol-message
+   "session.login-required"
+   (hasheq 'login_url session-login-url
+           'message (or message
+                         "Login required to play. Get your token at https://artifactsmmo.com and paste it here, or set ARTIFACTS_API_TOKEN."))))
 
 (define (action-result-message character action
                                #:ok [ok #t]
@@ -347,23 +367,20 @@
        #t)]))
 
 (define (session-publish-snapshot!)
-  (when (session-authenticated?)
-    (ensure-world!))
+  ;; World view is public — publish regardless of auth. Private characters and
+  ;; logs are only included when authenticated.
+  (ensure-world!)
   (when session-world
     (define chars session-chars)
     (define config (session-config))
     (define events
       (with-handlers ([exn:fail? (lambda (_exn) '())])
-        (if (session-authenticated?)
-            (as-list (response-data (get-active-events #:config config)))
-            '())))
+        (as-list (response-data (get-active-events #:config config)))))
     (define raids
       (with-handlers ([exn:fail? (lambda (_exn) '())])
-        (if (session-authenticated?)
-            (filter values
-                    (map raid-visual-record
-                         (as-list (response-data (get-raids #:config config)))))
-            '())))
+        (filter values
+                (map raid-visual-record
+                     (as-list (response-data (get-raids #:config config)))))))
     (define focuses
       (append
        (for/list ([c chars] #:when (hash? c))
@@ -487,11 +504,12 @@
   (define payload (payload-from-data data))
   (cond
     [(not (session-authenticated?))
+     (visualizer-publish! (session-login-required-message))
      (visualizer-publish!
       (action-result-message (or character "") (or action-name 'unknown)
                              #:ok #f
                              #:error-code 452
-                             #:message "Not authenticated."))]
+                             #:message "Login required to play. Get your token at https://artifactsmmo.com and paste it here, or set ARTIFACTS_API_TOKEN."))]
     [(not (and character action-name))
      (visualizer-publish!
       (action-result-message (or character "") (or action-name 'unknown)
@@ -550,8 +568,8 @@
        (handle-player-action! data)]
       [("ui.subscribe")
        (session-publish-status!)
+       (session-publish-snapshot!)
        (when (session-authenticated?)
-         (session-publish-snapshot!)
          (session-publish-logs!))]
       [else
        (printf "3D bridge ignored unknown command type: ~a\n" type)
@@ -560,9 +578,10 @@
 (define (poll-loop interval-seconds)
   (let loop ()
     (unless session-stop?
+      ;; World view is public; keep it fresh for everyone, every poll.
+      (session-publish-snapshot!)
       (when (session-authenticated?)
         (session-refresh-account!)
-        (session-publish-snapshot!)
         (session-publish-logs!))
       (sleep interval-seconds)
       (loop))))
@@ -596,9 +615,12 @@
                  (when (session-authenticated?)
                    (session-publish-snapshot!))))
   (session-publish-status!)
+  (session-publish-snapshot!)
   (when (session-authenticated?)
     (session-refresh-account!)
-    (session-publish-snapshot!))
+    (session-publish-logs!))
+  (unless (session-authenticated?)
+    (visualizer-publish! (session-login-required-message)))
   #t)
 
 (define (stop-session-service!)

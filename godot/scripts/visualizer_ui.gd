@@ -133,6 +133,18 @@ func set_action_result(result: Dictionary) -> void:
 	]
 
 
+func set_login_required(payload: Dictionary) -> void:
+	# Artifacts has no OAuth: the player token is issued on the website. Send the
+	# user there to copy it, then they paste it here or set ARTIFACTS_API_TOKEN.
+	var login_url := str(payload.get("login_url", "https://artifactsmmo.com"))
+	var message := str(payload.get("message", "Login required to play."))
+	if _action_label:
+		_action_label.text = "Action: %s" % message
+	if DisplayServer.has_feature(DisplayServer.FEATURE_POINTER):
+		OS.shell_open(login_url)
+	set_mode("Login required", "token page opened — paste token below or set ARTIFACTS_API_TOKEN")
+
+
 func set_account_logs(entries: Array) -> void:
 	if _logs_label == null:
 		return

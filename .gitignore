@@ -7,3 +7,7 @@ godot/.godot/
 .godot/
 *.gd.uid
 /android/
+
+# Racket build artifacts
+compiled/
+bridge/compiled/
